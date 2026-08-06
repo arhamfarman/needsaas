@@ -1,0 +1,169 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light theme — premium, airy, Stripe/Linear/Notion inspired
+       Background: #F9FAFB (off-white, never pure white)
+       Cards: pure white (#FFFFFF) with soft border + subtle shadow
+       Foreground: #111827 (almost black, not pure black)
+       Secondary text: #6B7280
+       Muted text: #9CA3AF
+       Borders: very subtle gray
+    */
+    --background: 220 14% 98%;       /* #F9FAFB */
+    --foreground: 222 19% 11%;       /* #111827 */
+    --card: 0 0% 100%;               /* #FFFFFF — pure white cards */
+    --card-foreground: 222 19% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 19% 11%;
+    --primary: 222 19% 11%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 96%;        /* #F3F4F6 */
+    --secondary-foreground: 222 19% 14%;
+    --muted: 220 14% 96%;            /* #F3F4F6 */
+    --muted-foreground: 220 9% 46%;  /* #6B7280 */
+    --accent: 220 14% 96%;
+    --accent-foreground: 222 19% 14%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 91%;           /* #E5E7EB — very subtle */
+    --input: 220 13% 91%;
+    --ring: 222 86% 56%;             /* indigo */
+    --brand: 222 86% 56%;            /* indigo-500 #3B82F6 area */
+    --brand-foreground: 0 0% 100%;
+    --chart-1: 221 83% 53%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    --radius: 0.875rem;              /* larger radius — 14px */
+  }
+
+  .dark {
+    --background: 240 10% 4.5%;
+    --foreground: 240 5% 98%;
+    --card: 240 9% 6.5%;
+    --card-foreground: 240 5% 98%;
+    --popover: 240 10% 6%;
+    --popover-foreground: 240 5% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+    --secondary: 240 5% 12%;
+    --secondary-foreground: 240 5% 98%;
+    --muted: 240 5% 12%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 5% 14%;
+    --accent-foreground: 240 5% 98%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 6% 14%;
+    --input: 240 6% 16%;
+    --ring: 217 91% 60%;
+    --brand: 217 91% 60%;
+    --brand-foreground: 0 0% 100%;
+    --chart-1: 217 91% 60%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.011em;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, hsl(var(--border) / 0.5) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--border) / 0.5) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+  .bg-dots {
+    background-image: radial-gradient(hsl(var(--border)) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  .mask-fade-b {
+    -webkit-mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+    mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+  }
+  .mask-fade-edges {
+    -webkit-mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
+    mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
+  }
+  .mesh-gradient {
+    background-image:
+      radial-gradient(at 20% 20%, hsl(222 86% 56% / 0.07) 0px, transparent 50%),
+      radial-gradient(at 80% 10%, hsl(280 65% 60% / 0.05) 0px, transparent 50%),
+      radial-gradient(at 50% 80%, hsl(199 89% 48% / 0.04) 0px, transparent 50%);
+  }
+  .mesh-gradient-soft {
+    background-image:
+      radial-gradient(at 30% 30%, hsl(222 86% 56% / 0.05) 0px, transparent 50%),
+      radial-gradient(at 70% 60%, hsl(280 65% 60% / 0.03) 0px, transparent 50%);
+  }
+  /* Soft, layered shadows for light mode — never heavy */
+  .shadow-soft {
+    box-shadow:
+      0 1px 2px 0 rgb(17 24 39 / 0.03),
+      0 1px 3px 0 rgb(17 24 39 / 0.04);
+  }
+  .shadow-soft-lg {
+    box-shadow:
+      0 1px 3px 0 rgb(17 24 39 / 0.04),
+      0 4px 12px -2px rgb(17 24 39 / 0.06);
+  }
+  .shadow-soft-xl {
+    box-shadow:
+      0 2px 4px 0 rgb(17 24 39 / 0.04),
+      0 8px 24px -4px rgb(17 24 39 / 0.08);
+  }
+  .shadow-card {
+    box-shadow:
+      0 1px 2px 0 rgb(17 24 39 / 0.03),
+      0 1px 3px 0 rgb(17 24 39 / 0.04);
+  }
+  .shadow-card-hover {
+    box-shadow:
+      0 2px 4px 0 rgb(17 24 39 / 0.04),
+      0 8px 16px -4px rgb(17 24 39 / 0.08);
+  }
+}
+
+::selection {
+  background: hsl(var(--brand) / 0.15);
+  color: hsl(var(--foreground));
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(220 13% 85%);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(220 9% 70%);
+}
