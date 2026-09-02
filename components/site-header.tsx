@@ -94,13 +94,13 @@ export function SiteHeader() {
                       </AvatarFallback>
                     </Avatar>
                     <span className="text-sm font-medium text-foreground">
-                      {profile?.username ?? 'Account'}
+                      {profile?.full_name?.trim() ? profile.full_name.split(' ')[0] : (profile?.username ?? 'Account')}
                     </span>
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel className="truncate">
-                    {profile?.username ?? user.email}
+                    {profile?.full_name?.trim() ? profile.full_name.split(' ')[0] : (profile?.username ?? user.email)}
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>

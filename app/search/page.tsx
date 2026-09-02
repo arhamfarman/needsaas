@@ -144,6 +144,11 @@ export default function SearchPage() {
 
         // Track search event
         trackSearchEvent(q, filtered.length);
+        
+        if (filtered.length === 0) {
+          router.push(`/dashboard?tab=needs&title=${encodeURIComponent(q.trim())}#post-a-need`);
+          return;
+        }
       }
     } else {
       // No query — load by category/sort without FTS

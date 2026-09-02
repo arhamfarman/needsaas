@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/auth-provider';
 import type { Category } from '@/lib/types';
@@ -24,7 +25,8 @@ const TIMELINE_OPTIONS = [
 
 export function NeedForm({ categories, onDone }: { categories: Category[]; onDone: () => void }) {
   const { user } = useAuth();
-  const [title, setTitle] = useState('');
+  const searchParams = useSearchParams();
+  const [title, setTitle] = useState(searchParams.get('title') || '');
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState<string>('none');
   const [loading, setLoading] = useState(false);

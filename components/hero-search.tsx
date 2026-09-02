@@ -84,7 +84,11 @@ export function HeroSearch() {
   function goToSearch() {
     if (query.trim()) {
       trackSearchEvent(query, suggestions.length);
-      router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+      if (hasSearched && suggestions.length === 0) {
+        router.push(`/dashboard?tab=needs&title=${encodeURIComponent(query.trim())}#post-a-need`);
+      } else {
+        router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+      }
     } else {
       router.push('/search');
     }
