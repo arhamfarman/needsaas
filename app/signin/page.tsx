@@ -24,6 +24,7 @@ function SignInForm() {
   const [username, setUsername] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [confirmEmailSent, setConfirmEmailSent] = useState(false);
 
   useEffect(() => { setTab(params.get('tab') === 'signup' ? 'signup' : 'signin'); }, [params]);
 
@@ -37,8 +38,13 @@ function SignInForm() {
       router.push('/dashboard');
     } else {
       if (username.trim().length < 3) { setError('Username must be at least 3 characters'); setLoading(false); return; }
-      const { error } = await signUp(email, password, username.trim());
+      const { error, needsEmailConfirmation } = await signUp(email, password, username.trim());
       if (error) { setError(error); setLoading(false); return; }
+      if (needsEmailConfirmation) {
+        setLoading(false);
+        setConfirmEmailSent(true);
+        return;
+      }
       router.push('/dashboard');
     }
   }
@@ -90,16 +96,31 @@ function SignInForm() {
             </TabsContent>
 
             <TabsContent value="signup" className="mt-6">
-              <p className="mb-5 text-sm text-muted-foreground">Create an account to post needs, vote, bookmark software, and contribute to build rewards.</p>
-              <AuthForm
-                email={email} setEmail={setEmail}
-                password={password} setPassword={setPassword}
-                username={username} setUsername={setUsername}
-                showUsername
-                error={error} loading={loading}
-                onSubmit={handleSubmit}
-                submitLabel="Create account"
-              />
+              {confirmEmailSent ? (
+                <div className="flex items-start gap-3 rounded-lg border border-brand/30 bg-brand/5 px-4 py-3 text-sm text-foreground">
+                  <Mail className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+                  <div>
+                    <p className="font-medium">Check your email</p>
+                    <p className="mt-1 text-muted-foreground">
+                      We sent a confirmation link to <span className="font-medium text-foreground">{email}</span>.
+                      Click it, then come back and sign in.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="mb-5 text-sm text-muted-foreground">Create an account to post needs, vote, bookmark software, and contribute to build rewards.</p>
+                  <AuthForm
+                    email={email} setEmail={setEmail}
+                    password={password} setPassword={setPassword}
+                    username={username} setUsername={setUsername}
+                    showUsername
+                    error={error} loading={loading}
+                    onSubmit={handleSubmit}
+                    submitLabel="Create account"
+                  />
+                </>
+              )}
             </TabsContent>
           </Tabs>
           

@@ -111,6 +111,7 @@ export default function PricingPage() {
           body: JSON.stringify({
             mode: 'subscription',
             amount,
+            interval: billingCycle === 'monthly' ? 'month' : 'year',
             product_name: productName,
             product_metadata: {
               plan,

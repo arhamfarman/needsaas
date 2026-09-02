@@ -16,13 +16,14 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import {
-  ArrowUp, ArrowLeft, Share2, Lightbulb, Package, Link2, ChevronUp,
+  ArrowUp, ArrowLeft, Share2, Lightbulb, Package, ChevronUp,
   DollarSign, Users, Hammer, Calendar, Check, Loader2, Info,
   Sparkles, TrendingUp,
 } from 'lucide-react';
 import { formatDate, formatNumber } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { NeedScoreDisplay } from '@/components/needscore-display';
+import { AttachProductDialog } from '@/components/forms/attach-product-dialog';
 
 const STATUS_CONFIG: Record<NeedStatus, { label: string; color: string; dot: string }> = {
   open:       { label: 'Looking for Builder', color: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-400' },
@@ -279,7 +280,9 @@ export function NeedDetailView() {
             {status.label}
           </span>
           {need.category && (
-            <Badge variant="outline" className="border-border/60 text-muted-foreground">{need.category.name}</Badge>
+            <Link href={`/software/${need.category.slug}`}>
+              <Badge variant="outline" className="border-border/60 text-muted-foreground hover:border-brand hover:text-brand">{need.category.name}</Badge>
+            </Link>
           )}
           {need.timeline && (
             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
@@ -532,13 +535,7 @@ export function NeedDetailView() {
             <Package className="h-5 w-5 text-emerald-500" /> Matching Software
             {matchingProducts.length > 0 && <span className="text-sm font-normal text-muted-foreground">{matchingProducts.length}</span>}
           </h2>
-          {user && (
-            <Button asChild variant="ghost" size="sm">
-              <Link href={`/dashboard?tab=products&attach=${need.id}`}>
-                <Link2 className="mr-1.5 h-3.5 w-3.5" /> Attach yours
-              </Link>
-            </Button>
-          )}
+          {user && <AttachProductDialog need={need} />}
         </div>
 
         {matchingProducts.length > 0 ? (
@@ -574,11 +571,9 @@ export function NeedDetailView() {
               No builder has attached a solution to this need yet. If you&apos;ve built something that fits, attach it.
             </p>
             {user ? (
-              <Button asChild size="sm" className="mt-4 bg-brand text-brand-foreground hover:bg-brand/90">
-                <Link href={`/dashboard?tab=products&attach=${need.id}`}>
-                  <Link2 className="mr-1.5 h-3.5 w-3.5" /> Attach a product
-                </Link>
-              </Button>
+              <div className="mt-4">
+                <AttachProductDialog need={need} />
+              </div>
             ) : (
               <Button asChild size="sm" variant="outline" className="mt-4">
                 <Link href="/signin">Sign in to attach a product</Link>

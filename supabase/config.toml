@@ -1,0 +1,11 @@
+project_id = "wowugivczgicuqfvqgqy"
+
+# Stripe calls this webhook directly with a `stripe-signature` header, not a
+# Supabase user JWT — the function verifies the Stripe signature itself
+# (stripe.webhooks.constructEventAsync). JWT verification must stay off here,
+# or every webhook delivery gets rejected with 401 before reaching the code.
+# (`supabase functions deploy stripe-webhook` without --no-verify-jwt would
+# otherwise silently re-enable this and break the whole payment-confirmation
+# flow — this file is what makes the setting durable.)
+[functions.stripe-webhook]
+verify_jwt = false

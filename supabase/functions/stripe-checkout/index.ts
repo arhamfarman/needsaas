@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { price_id, success_url, cancel_url, mode, amount, product_name, product_metadata } = body;
+    const { price_id, success_url, cancel_url, mode, amount, product_name, product_metadata, interval } = body;
 
     // Validate: either price_id (subscription/price) or amount+product_name (inline one-time)
     if (!success_url || typeof success_url !== 'string') {
@@ -73,6 +73,16 @@ Deno.serve(async (req) => {
       if (!product_name || typeof product_name !== 'string') {
         return corsResponse({ error: 'product_name is required for inline pricing' }, 400);
       }
+    }
+
+    // Stripe requires a `recurring` config on price_data whenever a Checkout Session
+    // is created in subscription mode with inline pricing (as opposed to a stored price_id).
+    let resolvedInterval: 'day' | 'week' | 'month' | 'year' | undefined;
+    if (isInline && resolvedMode === 'subscription') {
+      if (interval !== 'month' && interval !== 'year') {
+        return corsResponse({ error: 'interval must be "month" or "year" for inline subscription pricing' }, 400);
+      }
+      resolvedInterval = interval;
     }
 
     const authHeader = req.headers.get('Authorization')!;
@@ -205,6 +215,7 @@ Deno.serve(async (req) => {
                 name: product_name,
                 metadata: product_metadata ?? {},
               },
+              ...(resolvedInterval ? { recurring: { interval: resolvedInterval } } : {}),
             },
           },
         ]

@@ -168,10 +168,10 @@ export default function SoftwareManagementPage() {
 
   const approve = async (id: string) => {
     setPendingActionId(id);
-    const { error: err } = await supabase
-      .from('products')
-      .update({ paid: true, paid_at: new Date().toISOString() })
-      .eq('id', id);
+    // paid/paid_at are not directly UPDATE-able by `authenticated` (see
+    // add_product_fee_and_images.sql.sql) — approval goes through an
+    // admin-only SECURITY DEFINER function instead.
+    const { error: err } = await supabase.rpc('admin_approve_product', { product_id: id });
     setPendingActionId(null);
 
     if (err) {
@@ -185,10 +185,10 @@ export default function SoftwareManagementPage() {
   const feature = async (product: ProductWithRelations) => {
     setPendingActionId(product.id);
     const next = !product.featured;
-    const { error: err } = await supabase
-      .from('products')
-      .update({ featured: next })
-      .eq('id', product.id);
+    const { error: err } = await supabase.rpc('admin_set_product_featured', {
+      product_id: product.id,
+      featured: next,
+    });
     setPendingActionId(null);
 
     if (err) {

@@ -187,7 +187,7 @@ export default function SearchPage() {
     }
 
     setLoading(false);
-  }, [q, activeCategory, sort, status]);
+  }, [q, activeCategory, sort, status, router]);
 
   useEffect(() => { loadResults(); }, [loadResults]);
 

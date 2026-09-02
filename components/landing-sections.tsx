@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { supabase } from '@/lib/supabase';
 import type { Product, Need, Category, Profile, Review } from '@/lib/types';
 import { HeroSearch } from '@/components/hero-search';
 import { ProductCard } from '@/components/product-card';
@@ -31,9 +30,13 @@ const fadeUp = {
 const HERO_MESSAGES = ['Find software for your needs.', 'Or inspire someone to build it.'];
 
 export function LandingHero() {
-  const [text, setText] = useState('');
+  // Starts already showing the full first message (not an empty string) so
+  // the H1 has real, complete text at first paint — search engines and any
+  // crawler that doesn't run the typing animation still see the actual
+  // heading, not blank content that only fills in after hydration.
+  const [text, setText] = useState(HERO_MESSAGES[0]);
   const [msgIdx, setMsgIdx] = useState(0);
-  const [phase, setPhase] = useState<'typing' | 'pausing' | 'deleting'>('typing');
+  const [phase, setPhase] = useState<'typing' | 'pausing' | 'deleting'>('pausing');
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
@@ -154,53 +157,22 @@ export function LandingHero() {
   );
 }
 
-export function LandingContent() {
-  const [trendingNeeds, setTrendingNeeds] = useState<Need[]>([]);
-  const [newestSoftware, setNewestSoftware] = useState<Product[]>([]);
-  const [topRated, setTopRated] = useState<Product[]>([]);
-  const [highestReward, setHighestReward] = useState<Need[]>([]);
-  const [beingBuilt, setBeingBuilt] = useState<Need[]>([]);
-  const [recentlyCompleted, setRecentlyCompleted] = useState<Need[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [builders, setBuilders] = useState<(Profile & { product_count: number })[]>([]);
-  const [loading, setLoading] = useState(true);
+type LandingContentProps = {
+  trendingNeeds: Need[];
+  newestSoftware: Product[];
+  topRated: Product[];
+  highestReward: Need[];
+  beingBuilt: Need[];
+  recentlyCompleted: Need[];
+  categories: Category[];
+  builders: (Profile & { product_count: number })[];
+};
 
-  useEffect(() => {
-    async function load() {
-      const [needs, newest, rated, highReward, building, completed, cats, builderProds] = await Promise.all([
-        supabase.from('needs').select(`*, category:categories(*)`).order('vote_count', { ascending: false }).limit(6),
-        supabase.from('products').select(`*, category:categories(*)`).eq('paid', true).order('created_at', { ascending: false }).limit(6),
-        supabase.from('products').select(`*, category:categories(*)`).eq('paid', true).order('avg_rating', { ascending: false }).limit(6),
-        supabase.from('needs').select(`*, category:categories(*)`).order('reward_amount', { ascending: false }).limit(6),
-        supabase.from('needs').select(`*, category:categories(*)`).in('status', ['committed', 'building']).order('updated_at', { ascending: false }).limit(6),
-        supabase.from('needs').select(`*, category:categories(*)`).eq('status', 'fulfilled').order('updated_at', { ascending: false }).limit(6),
-        supabase.from('categories').select('*').order('name'),
-        supabase.from('products').select('owner_id').eq('paid', true),
-      ]);
-
-      setTrendingNeeds((needs.data as Need[]) ?? []);
-      setNewestSoftware((newest.data as Product[]) ?? []);
-      setTopRated((rated.data as Product[]) ?? []);
-      setHighestReward((highReward.data as Need[]) ?? []);
-      setBeingBuilt((building.data as Need[]) ?? []);
-      setRecentlyCompleted((completed.data as Need[]) ?? []);
-      setCategories((cats.data as Category[]) ?? []);
-
-      const ownerCounts = new Map<string, number>();
-      (builderProds.data ?? []).forEach((p: any) => {
-        ownerCounts.set(p.owner_id, (ownerCounts.get(p.owner_id) ?? 0) + 1);
-      });
-      const topOwnerIds = Array.from(ownerCounts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 4).map((entry) => entry[0]);
-      if (topOwnerIds.length > 0) {
-        const { data: profiles } = await supabase.from('profiles').select('*').in('id', topOwnerIds);
-        const enriched = (profiles ?? []).map((p: any) => ({ ...p, product_count: ownerCounts.get(p.id) ?? 0 }));
-        setBuilders(enriched as (Profile & { product_count: number })[]);
-      }
-
-      setLoading(false);
-    }
-    load();
-  }, []);
+export function LandingContent({
+  trendingNeeds, newestSoftware, topRated, highestReward, beingBuilt,
+  recentlyCompleted, categories, builders,
+}: LandingContentProps) {
+  const loading = false;
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

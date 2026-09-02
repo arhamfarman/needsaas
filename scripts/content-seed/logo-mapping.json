@@ -1,0 +1,154 @@
+[
+  {
+    "name": "Zoom",
+    "slug": "zoom"
+  },
+  {
+    "name": "Discord",
+    "slug": "discord"
+  },
+  {
+    "name": "Notion",
+    "slug": "notion"
+  },
+  {
+    "name": "Asana",
+    "slug": "asana"
+  },
+  {
+    "name": "Trello",
+    "slug": "trello"
+  },
+  {
+    "name": "ClickUp",
+    "slug": "clickup"
+  },
+  {
+    "name": "Linear",
+    "slug": "linear"
+  },
+  {
+    "name": "Jira",
+    "slug": "jira"
+  },
+  {
+    "name": "Airtable",
+    "slug": "airtable"
+  },
+  {
+    "name": "Calendly",
+    "slug": "calendly"
+  },
+  {
+    "name": "Figma",
+    "slug": "figma"
+  },
+  {
+    "name": "Mailchimp",
+    "slug": "mailchimp"
+  },
+  {
+    "name": "Brevo",
+    "slug": "brevo"
+  },
+  {
+    "name": "Kit (formerly ConvertKit)",
+    "slug": "kit"
+  },
+  {
+    "name": "Hootsuite",
+    "slug": "hootsuite"
+  },
+  {
+    "name": "Buffer",
+    "slug": "buffer"
+  },
+  {
+    "name": "Semrush",
+    "slug": "semrush"
+  },
+  {
+    "name": "HubSpot CRM",
+    "slug": "hubspot"
+  },
+  {
+    "name": "GitHub",
+    "slug": "github"
+  },
+  {
+    "name": "Vercel",
+    "slug": "vercel"
+  },
+  {
+    "name": "Postman",
+    "slug": "postman"
+  },
+  {
+    "name": "Webflow",
+    "slug": "webflow"
+  },
+  {
+    "name": "Shopify",
+    "slug": "shopify"
+  },
+  {
+    "name": "BigCommerce",
+    "slug": "bigcommerce"
+  },
+  {
+    "name": "Squarespace",
+    "slug": "squarespace"
+  },
+  {
+    "name": "Zapier",
+    "slug": "zapier"
+  },
+  {
+    "name": "Make",
+    "slug": "make"
+  },
+  {
+    "name": "Grammarly",
+    "slug": "grammarly"
+  },
+  {
+    "name": "Google Analytics",
+    "slug": "googleanalytics"
+  },
+  {
+    "name": "Mixpanel",
+    "slug": "mixpanel"
+  },
+  {
+    "name": "QuickBooks",
+    "slug": "quickbooks"
+  },
+  {
+    "name": "Xero",
+    "slug": "xero"
+  },
+  {
+    "name": "Gusto",
+    "slug": "gusto"
+  },
+  {
+    "name": "Greenhouse",
+    "slug": "greenhouse"
+  },
+  {
+    "name": "Zendesk",
+    "slug": "zendesk"
+  },
+  {
+    "name": "Intercom",
+    "slug": "intercom"
+  },
+  {
+    "name": "1Password",
+    "slug": "1password"
+  },
+  {
+    "name": "Bitwarden",
+    "slug": "bitwarden"
+  }
+]

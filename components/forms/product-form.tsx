@@ -73,10 +73,11 @@ export function ProductForm({ categories, onDone }: { categories: Category[]; on
       category_id: categoryId === 'none' ? null : categoryId,
       logo_url: logoUrl,
       images,
-      paid: isFreeListing,
-      paid_at: isFreeListing ? new Date().toISOString() : null,
     };
 
+    // Every new listing is created unpaid (the DB no longer accepts paid/paid_at
+    // on insert — see restrict_product_insert_columns.sql). Free eligibility is
+    // re-derived and applied server-side via claim_free_product_listing().
     const { data, error } = await supabase.from('products').insert(productData).select('id').single();
 
     if (error) {
@@ -87,7 +88,11 @@ export function ProductForm({ categories, onDone }: { categories: Category[]; on
 
     const productId = data.id;
 
-    if (isFreeListing) {
+    const { data: claimed, error: claimError } = await supabase.rpc('claim_free_product_listing', {
+      product_id: productId,
+    });
+
+    if (!claimError && claimed) {
       toast.success(isProBuilder ? 'Your software is published!' : 'Your first software listing is published — free!');
       setLoading(false);
       setMatchDialog({ open: true, productId, description: description.trim() });

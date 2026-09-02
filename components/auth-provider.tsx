@@ -11,7 +11,7 @@ type AuthContextValue = {
   profile: Profile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string, username: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, username: string) => Promise<{ error: string | null; needsEmailConfirmation: boolean }>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -69,15 +69,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp: AuthContextValue['signUp'] = async (email, password, username) => {
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) return { error: error.message };
-    if (data.user) {
-      const { error: profileErr } = await supabase
-        .from('profiles')
-        .insert({ id: data.user.id, username });
-      if (profileErr) return { error: profileErr.message };
-    }
-    return { error: null };
+    // Pass the chosen username as user metadata so the DB's handle_new_user()
+    // trigger picks it up when it creates the profile row — that trigger fires
+    // synchronously as part of this call, before we get a session back, so
+    // inserting a profiles row from here ourselves would race it (and fail
+    // outright when email confirmation is on, since there's no session yet
+    // to authenticate the insert against RLS).
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { username } },
+    });
+    if (error) return { error: error.message, needsEmailConfirmation: false };
+
+    // If a session came back immediately (email confirmation disabled), the
+    // trigger already applied the chosen username — nothing left to do.
+    return { error: null, needsEmailConfirmation: !data.session };
   };
 
   const signInWithGoogle: AuthContextValue['signInWithGoogle'] = async () => {
