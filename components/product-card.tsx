@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Star, ExternalLink } from 'lucide-react';
 import type { Product } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +12,8 @@ import { VerifiedBadge } from '@/components/verified-badge';
 import { cn } from '@/lib/utils';
 
 export function ProductCard({ product, showPaidBadge }: { product: Product; showPaidBadge?: boolean }) {
+  const router = useRouter();
+
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-xl border border-border/60 bg-white transition-all duration-200 hover:border-border hover:shadow-card-hover">
       <Link href={`/products/${product.id}`} className="flex-1">
@@ -63,11 +68,31 @@ export function ProductCard({ product, showPaidBadge }: { product: Product; show
           {/* Meta row */}
           <div className="flex flex-wrap items-center gap-1.5">
             {product.category && (
-              <Link href={`/software/${product.category.slug}`}>
+              // Not a nested <Link> — this sits inside the card's own outer <Link>
+              // (below), and an <a> can't legally contain another <a>. The browser
+              // would silently un-nest them, which broke hydration (mismatched
+              // server/client DOM). Navigate programmatically instead, stopping the
+              // click from also triggering the outer card link.
+              <span
+                role="link"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  router.push(`/software/${product.category!.slug}`);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    router.push(`/software/${product.category!.slug}`);
+                  }
+                }}
+              >
                 <Badge variant="outline" className="border-border/50 px-2 py-0 text-[10px] font-medium text-muted-foreground hover:border-brand hover:text-brand">
                   {product.category.name}
                 </Badge>
-              </Link>
+              </span>
             )}
             {product.pricing && (
               <Badge variant="outline" className="border-border/50 px-2 py-0 text-[10px] font-medium text-muted-foreground">
