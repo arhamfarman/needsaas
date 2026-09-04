@@ -4,7 +4,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://needsaas.com';
 
 export const metadata: Metadata = {
   title: 'Pricing — Pro Builder subscription',
-  description: 'Free to start. First listing free. Pro Builder is $15/month or $99/year for unlimited listings, analytics, verified badge, and AI-powered need matching.',
+  description: 'Free to start. First listing free. Pro Builder is $15/month or $99/year for unlimited listings, analytics, verified badge, and demand-based opportunity matching.',
   alternates: { canonical: `${SITE_URL}/pricing` },
   openGraph: {
     title: 'Pricing — NeedSaaS',

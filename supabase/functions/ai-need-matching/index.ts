@@ -1,3 +1,26 @@
+/*
+ * DEPRECATED / UNUSED (documented 2026-09-04, Pro Builder value audit).
+ *
+ * Nothing in the frontend calls this function -- confirmed via a full
+ * codebase search for its name and URL. It writes to `need_matches` with
+ * status 'suggested', but no code path ever transitions a row to
+ * 'attached', so its output was never surfaced anywhere even when it did
+ * run. It also isn't real AI/ML despite the name -- the "matching" below is
+ * plain keyword-set overlap plus a category-match bonus.
+ *
+ * The feature it was meant to power is served today by a different,
+ * genuinely real mechanism instead: `get_opportunity_feed()` (see
+ * supabase/migrations/20260806114928_..._opportunity_feed.sql.sql), a
+ * weighted SQL ranking over NeedScore, reward pool, votes, growth rate,
+ * competition, and category affinity -- live, Pro-gated, and described
+ * in-app as "demand-based opportunity matching," not AI.
+ *
+ * Left deployed rather than deleted: it requires a real authenticated user
+ * (own JWT) to call, exposes no secrets beyond the service-role key already
+ * used the same way by every other Edge Function in this project, and
+ * costs nothing while unused. Safe to repurpose for a real matching
+ * feature later, or to remove once confirmed nothing will ever call it.
+ */
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.49.1";
 

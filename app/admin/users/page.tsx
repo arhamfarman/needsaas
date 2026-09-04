@@ -36,6 +36,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 
 type SortKey = 'newest' | 'oldest' | 'username';
@@ -59,6 +69,7 @@ export default function UserManagementPage() {
   const [page, setPage] = React.useState(1);
   const [totalCount, setTotalCount] = React.useState(0);
   const [pendingActionId, setPendingActionId] = React.useState<string | null>(null);
+  const [adminConfirmTarget, setAdminConfirmTarget] = React.useState<Profile | null>(null);
 
   // Debounce search input
   React.useEffect(() => {
@@ -119,6 +130,18 @@ export default function UserManagementPage() {
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
+  // These three privileged flags can no longer be updated by a direct table
+  // write (see supabase/migrations/20260904090000_protect_privileged_profile_columns.sql)
+  // -- they now go through admin-only, server-side-checked RPCs
+  // (20260904090100_admin_profile_management_functions.sql). The RPC itself
+  // is the access control; this page being under /admin is a UX convenience,
+  // not the actual security boundary.
+  const RPC_BY_FIELD = {
+    is_admin: { name: 'admin_set_is_admin', param: 'new_is_admin' },
+    verified: { name: 'admin_set_verified', param: 'new_verified' },
+    pro_builder: { name: 'admin_set_pro_builder', param: 'new_pro_builder' },
+  } as const;
+
   const patchProfile = async (
     id: string,
     field: 'is_admin' | 'verified' | 'pro_builder',
@@ -127,10 +150,11 @@ export default function UserManagementPage() {
     errorMsg: string,
   ) => {
     setPendingActionId(id);
-    const { error: err } = await supabase
-      .from('profiles')
-      .update({ [field]: next })
-      .eq('id', id);
+    const { name, param } = RPC_BY_FIELD[field];
+    const { error: err } = await supabase.rpc(name, {
+      target_user_id: id,
+      [param]: next,
+    });
     setPendingActionId(null);
 
     if (err) {
@@ -143,7 +167,14 @@ export default function UserManagementPage() {
     );
   };
 
-  const toggleAdmin = (u: Profile) =>
+  // Admin status is destructive enough (full moderation access) to warrant a
+  // confirmation step; verified/Pro Builder stay single-click as before.
+  const requestToggleAdmin = (u: Profile) => setAdminConfirmTarget(u);
+
+  const confirmToggleAdmin = () => {
+    if (!adminConfirmTarget) return;
+    const u = adminConfirmTarget;
+    setAdminConfirmTarget(null);
     patchProfile(
       u.id,
       'is_admin',
@@ -151,6 +182,7 @@ export default function UserManagementPage() {
       !u.is_admin ? 'Admin access granted' : 'Admin access revoked',
       'Failed to update admin status',
     );
+  };
 
   const toggleVerified = (u: Profile) =>
     patchProfile(
@@ -357,7 +389,7 @@ export default function UserManagementPage() {
                         <Button
                           size="sm"
                           variant={u.is_admin ? 'secondary' : 'outline'}
-                          onClick={() => toggleAdmin(u)}
+                          onClick={() => requestToggleAdmin(u)}
                           disabled={pendingActionId === u.id}
                           title={u.is_admin ? 'Remove admin' : 'Make admin'}
                         >
@@ -464,6 +496,30 @@ export default function UserManagementPage() {
           </div>
         </div>
       )}
+
+      <AlertDialog
+        open={adminConfirmTarget !== null}
+        onOpenChange={(open) => { if (!open) setAdminConfirmTarget(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {adminConfirmTarget?.is_admin ? 'Remove admin access?' : 'Grant admin access?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {adminConfirmTarget?.is_admin
+                ? `@${adminConfirmTarget?.username} will lose full moderation access — approving listings, editing needs/reviews, and everything else under /admin.`
+                : `@${adminConfirmTarget?.username} will gain full moderation access — approving listings, editing needs/reviews, and everything else under /admin.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmToggleAdmin}>
+              {adminConfirmTarget?.is_admin ? 'Remove admin' : 'Grant admin'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

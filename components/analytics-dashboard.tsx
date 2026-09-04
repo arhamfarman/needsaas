@@ -10,7 +10,7 @@ import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis,
   Tooltip, CartesianGrid, LineChart, Line, PieChart, Pie, Cell,
 } from 'recharts';
-import { Eye, Users, Bookmark, Star, TrendingUp, MousePointerClick, Package, Link2, BarChart3 } from 'lucide-react';
+import { Eye, Users, Bookmark, Star, TrendingUp, MousePointerClick, Package, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type DailyViewData = { date: string; views: number; unique: number };
@@ -31,7 +31,6 @@ export function AnalyticsDashboard() {
     profileViews: 0,
     bookmarks: 0,
     reviews: 0,
-    needMatches: 0,
     avgRating: 0,
     productCount: 0,
   });
@@ -92,13 +91,6 @@ export function AnalyticsDashboard() {
       .select('*', { count: 'exact', head: true })
       .in('product_id', productIds);
 
-    // Need matches
-    const { count: matchCount } = await supabase
-      .from('need_matches')
-      .select('*', { count: 'exact', head: true })
-      .in('product_id', productIds)
-      .eq('status', 'attached');
-
     // Avg rating
     const ratedProducts = (products ?? []).filter((p) => p.review_count > 0);
     const avgRating = ratedProducts.length > 0
@@ -111,7 +103,6 @@ export function AnalyticsDashboard() {
       profileViews,
       bookmarks: bookmarkCount ?? 0,
       reviews: reviewCount ?? 0,
-      needMatches: matchCount ?? 0,
       avgRating,
       productCount: (products ?? []).filter((p) => (p as any).paid !== false).length,
     });
@@ -200,7 +191,6 @@ export function AnalyticsDashboard() {
         <AnalyticsStat icon={Eye} label="Profile Views" value={totals.profileViews} />
         <AnalyticsStat icon={Bookmark} label="Bookmarks" value={totals.bookmarks} />
         <AnalyticsStat icon={Star} label="Reviews" value={totals.reviews} />
-        <AnalyticsStat icon={Link2} label="Need Matches" value={totals.needMatches} />
         <AnalyticsStat icon={Star} label="Avg Rating" value={totals.avgRating > 0 ? totals.avgRating.toFixed(1) : '—'} />
         <AnalyticsStat icon={Package} label="Published" value={totals.productCount} />
       </div>

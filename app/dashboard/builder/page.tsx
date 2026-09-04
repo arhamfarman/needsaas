@@ -12,6 +12,7 @@ import { ProfileForm } from '@/components/forms/profile-form';
 import { PayProductButton } from '@/components/forms/pay-product-button';
 import { AnalyticsDashboard } from '@/components/analytics-dashboard';
 import { OpportunityFeed } from '@/components/opportunity-feed';
+import { BuilderInsights } from '@/components/builder-insights';
 import { ProductImage } from '@/components/product-image';
 import { VerifiedBadge } from '@/components/verified-badge';
 import { Button } from '@/components/ui/button';
@@ -25,7 +26,7 @@ import {
   AlertCircle, CheckCircle2, Eye, Bookmark, BarChart3, Target,
   ArrowRight, Search, Rocket, TrendingUp, ExternalLink, Crown,
   Link2, Zap, Activity as ActivityIcon, Hammer, DollarSign,
-  CreditCard, Receipt, Calendar, ShieldCheck, Gauge, Award, MessageSquare, Compass,
+  CreditCard, Receipt, Calendar, Gauge, Award, MessageSquare, Compass,
 } from 'lucide-react';
 import { formatDate, formatNumber } from '@/lib/format';
 import { getNeedScoreLevel, getNeedScoreColor, getNeedScoreBg } from '@/lib/needscore';
@@ -392,9 +393,12 @@ function BuilderDashboardContent() {
         </TabsContent>
 
         {/* Opportunities */}
-        <TabsContent value="opportunities" className="mt-6">
+        <TabsContent value="opportunities" className="mt-6 space-y-8">
           <Panel title="Opportunity Feed" icon={Compass}>
             <OpportunityFeed />
+          </Panel>
+          <Panel title="Market Insights" icon={TrendingUp}>
+            <BuilderInsights />
           </Panel>
         </TabsContent>
 
@@ -881,10 +885,10 @@ function OrderRow({ order }: { order: StripeOrder }) {
 const PRO_FEATURES: { icon: typeof Crown; title: string; desc: string }[] = [
   { icon: Package, title: 'Unlimited software listings', desc: 'Publish as many products as you want with no $10 listing fee.' },
   { icon: BarChart3, title: 'Advanced analytics', desc: 'Detailed views, unique visitors, traffic sources and growth rates.' },
-  { icon: Compass, title: 'Opportunity feed', desc: 'A personalized feed of validated needs ranked for your expertise.' },
+  { icon: Compass, title: 'Demand-based opportunity matching', desc: 'A personalized feed of validated needs ranked for your expertise.' },
   { icon: Gauge, title: 'NeedScore™ insights', desc: 'See the highest-signal needs matched to your categories.' },
-  { icon: Award, title: 'Pro badge & ranking boost', desc: 'Stand out with a Pro badge and higher placement in search.' },
-  { icon: ShieldCheck, title: 'Priority support', desc: 'Fast-track responses and priority review of your listings.' },
+  { icon: Award, title: 'Pro Builder badge', desc: 'Stand out with a verified Pro Builder badge on your profile and listings.' },
+  { icon: TrendingUp, title: 'Builder Insights', desc: 'Trending needs, top rewards, and real search-demand analytics.' },
 ];
 
 function ProBuilderPanel({ profile }: { profile: any }) {
@@ -974,10 +978,10 @@ function ProBuilderPanel({ profile }: { profile: any }) {
           {[
             ['Software listings', '1 free, then $10 each', 'Unlimited'],
             ['Analytics', 'Basic stats', 'Full dashboards'],
-            ['Opportunity feed', '—', 'Personalized'],
+            ['Opportunity matching', '—', 'Personalized'],
             ['NeedScore™ matching', '—', 'Enabled'],
-            ['Pro badge', '—', '✓'],
-            ['Priority support', 'Standard', 'Priority'],
+            ['Pro Builder badge', '—', '✓'],
+            ['Builder Insights', '—', '✓'],
           ].map(([feature, free, pro]) => (
             <div key={feature} className="grid grid-cols-3 border-t border-border/60 text-sm">
               <div className="p-3 font-medium text-foreground">{feature}</div>
