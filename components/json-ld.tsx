@@ -115,6 +115,36 @@ export function builderJsonLd(builder: {
   };
 }
 
+export function blogPostJsonLd(post: {
+  title: string;
+  excerpt: string | null;
+  cover_image_url: string | null;
+  published_at: string | null;
+  updated_at: string | null;
+  author_name: string | null;
+  canonicalUrl: string;
+}) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: post.title,
+    ...(post.excerpt && { description: post.excerpt }),
+    ...(post.cover_image_url && { image: post.cover_image_url }),
+    ...(post.published_at && { datePublished: post.published_at }),
+    ...(post.updated_at && { dateModified: post.updated_at }),
+    author: {
+      '@type': 'Person',
+      name: post.author_name || 'NeedSaaS',
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'NeedSaaS',
+    },
+    mainEntityOfPage: post.canonicalUrl,
+    url: post.canonicalUrl,
+  };
+}
+
 export function websiteJsonLd() {
   return {
     '@context': 'https://schema.org',

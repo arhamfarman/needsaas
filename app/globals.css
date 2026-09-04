@@ -167,3 +167,84 @@
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(220 9% 70%);
 }
+
+/* Blog article body — styles raw HTML produced by lib/markdown.ts (rendered
+   via dangerouslySetInnerHTML). Kept as plain scoped CSS rather than the
+   @tailwindcss/typography plugin, which isn't a dependency of this project. */
+.blog-content {
+  line-height: 1.75;
+}
+.blog-content > * + * {
+  margin-top: 1.25em;
+}
+.blog-content h1,
+.blog-content h2,
+.blog-content h3,
+.blog-content h4,
+.blog-content h5,
+.blog-content h6 {
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: hsl(var(--foreground));
+  margin-top: 1.75em;
+}
+.blog-content h1 { font-size: 1.75rem; }
+.blog-content h2 { font-size: 1.5rem; }
+.blog-content h3 { font-size: 1.25rem; }
+.blog-content h4, .blog-content h5, .blog-content h6 { font-size: 1.05rem; }
+.blog-content p {
+  color: hsl(var(--foreground) / 0.9);
+}
+.blog-content a {
+  color: hsl(var(--brand));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.blog-content a:hover {
+  opacity: 0.85;
+}
+.blog-content strong {
+  color: hsl(var(--foreground));
+  font-weight: 600;
+}
+.blog-content ul,
+.blog-content ol {
+  padding-left: 1.5em;
+}
+.blog-content ul { list-style: disc; }
+.blog-content ol { list-style: decimal; }
+.blog-content li + li {
+  margin-top: 0.4em;
+}
+.blog-content blockquote {
+  border-left: 3px solid hsl(var(--brand) / 0.4);
+  padding-left: 1em;
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+}
+.blog-content pre {
+  background: hsl(var(--muted));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  padding: 1em;
+  overflow-x: auto;
+  font-size: 0.875em;
+}
+.blog-content code {
+  background: hsl(var(--muted));
+  border-radius: 4px;
+  padding: 0.15em 0.4em;
+  font-size: 0.875em;
+}
+.blog-content pre code {
+  background: none;
+  padding: 0;
+}
+.blog-content img {
+  border-radius: var(--radius);
+  max-width: 100%;
+}
+.blog-content hr {
+  border: none;
+  border-top: 1px solid hsl(var(--border));
+}

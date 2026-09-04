@@ -69,7 +69,7 @@ export default async function StarterPackDetailPage({ params }: Props) {
     .from('starter_pack_products')
     .select(`id, sort_order, featured, blurb,
       product:products(id, name, tagline, logo_url, pricing, price_from, url, avg_rating, review_count,
-        profile:profiles(username, verified)
+        profile:profiles(id, username, verified)
       )
     `)
     .eq('starter_pack_id', pack.id)
