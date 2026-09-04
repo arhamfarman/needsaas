@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 import {
   Trophy, DollarSign, Users, TrendingUp, Target, Zap, ArrowRight,
   ExternalLink, Eye, Bookmark, X, Sparkles, Shield, Swords, Lightbulb,
-  Crown, Rocket, Lock, ChevronRight, BarChart3,
+  Crown, Rocket, Lock, ChevronRight, BarChart3, AlertCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatNumber } from '@/lib/format';
@@ -25,12 +25,14 @@ export function OpportunityFeed({ limit = 12 }: { limit?: number }) {
   const { user, profile } = useAuth();
   const [opportunities, setOpportunities] = useState<OpportunityFeedItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [bookmarked, setBookmarked] = useState<Set<string>>(new Set());
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     if (!user) return;
     setLoading(true);
+    setError(null);
 
     // Fetch dismissed need IDs
     const { data: dismissals } = await supabase
@@ -41,13 +43,15 @@ export function OpportunityFeed({ limit = 12 }: { limit?: number }) {
     setDismissed(dismissedIds);
 
     // Fetch the opportunity feed
-    const { data, error } = await supabase.rpc('get_opportunity_feed', {
+    const { data, error: feedError } = await supabase.rpc('get_opportunity_feed', {
       builder_uuid: user.id,
       limit_count: limit,
     });
 
-    if (error) {
-      console.error('Opportunity feed error:', error);
+    if (feedError) {
+      console.error('Opportunity feed error:', feedError);
+      setError('Could not load opportunities right now. Please try again.');
+      setOpportunities([]);
     } else {
       setOpportunities((data as OpportunityFeedItem[]) ?? []);
     }
@@ -99,6 +103,17 @@ export function OpportunityFeed({ limit = 12 }: { limit?: number }) {
     return (
       <div className="grid gap-4 sm:grid-cols-2">
         {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-56 rounded-2xl" />)}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-destructive/40 bg-destructive/5 p-10 text-center">
+        <AlertCircle className="h-8 w-8 text-destructive/70" />
+        <h3 className="font-display text-lg font-semibold text-foreground">Couldn&apos;t load opportunities</h3>
+        <p className="mx-auto max-w-sm text-sm text-muted-foreground">{error}</p>
+        <Button size="sm" variant="outline" onClick={load} className="mt-2">Try again</Button>
       </div>
     );
   }
