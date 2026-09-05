@@ -724,6 +724,40 @@ Also verified: `git status` showed only the one new migration file both before a
 
 **Status: fixed, applied, verified live, committed and pushed.** Phase 2 (schema additions: `featured`/`sort_order`/`published_at` on packs, per-product role/best-for/price-label, and a real `starter_pack_needs` relation) is scoped and awaiting separate approval — not started.
 
+## 23. Starter Packs Phase 2 schema (2026-09-05) — applied, verified live; not committed/pushed
+
+Approved schema-only follow-up to §22, still schema-only — no frontend code touched. Adds `featured`/`sort_order`/`published_at` to `starter_packs` (mirroring `blog_posts.published_at`'s exact set-once-never-reset trigger semantics), three curation-label columns (`role_label`, `best_for_label`, `pricing_label`) to `starter_pack_products`, and a new `starter_pack_needs` junction table so "related Needs" can become a real, admin-curated relationship (not wired into the frontend yet — that's Phase 4).
+
+### Migration
+
+`supabase/migrations/20260905100000_starter_packs_phase2_schema.sql` — applied by the user via the Supabase SQL Editor. `starter_pack_needs` follows the identical RLS shape already proven in §22 (published-or-admin SELECT, admin-only INSERT/UPDATE/DELETE), plus `ON DELETE CASCADE` on both FKs and `UNIQUE(starter_pack_id, need_id)`. No RLS change was needed on `starter_packs`/`starter_pack_products` themselves — both already have fully admin-gated UPDATE policies with no self-service write path, so the new columns are covered without a gap.
+
+### Live verification (2026-09-05), all against real data, all cleaned up after
+
+- **Column/table existence**: confirmed via direct `select` queries for every new column (`starter_packs.featured/sort_order/published_at`, `starter_pack_products.role_label/best_for_label/pricing_label`) and for `starter_pack_needs` itself — all returned `200` with no "column/relation does not exist" error, which is exactly the signal PostgREST gives if a column were missing. (`information_schema`/`pg_policies` are not exposed via PostgREST in this project, so index/constraint existence was proven behaviorally instead — see below, a stronger proof than introspection anyway.)
+- **All 4 RLS policies on `starter_pack_needs` proven behaviorally**, using a real temporary need + draft pack + link row:
+  - **SELECT**: anon read on the draft pack's link → `0` rows; admin read → `1` row; after publishing the pack, anon read → `1` row (matches the exact pattern already proven live in §22).
+  - **INSERT**: the test link row itself was created via this policy.
+  - **UPDATE**: changed the link's `sort_order` as admin → succeeded.
+  - **DELETE**: deleted the link row directly as admin → succeeded, re-queried, confirmed gone.
+- **`UNIQUE(starter_pack_id, need_id)`**: attempted a duplicate insert of the same pair → rejected with a real `23505` conflict naming the exact constraint (`starter_pack_needs_starter_pack_id_need_id_key`).
+- **`ON DELETE CASCADE`, both directions, tested separately**: (a) created a fresh pack+need+link, deleted the *pack* directly (not the link) → link row automatically gone; (b) created another fresh pack+need+link, deleted the *need* directly (not the link) → link row automatically gone. Both foreign keys' cascade behavior confirmed independently.
+- **`published_at` trigger behavior**, on the main test pack: publish → `published_at` set (e.g. `17:10:09.508837+00`); unpublish → `published_at` unchanged, `updated_at` changed (proves the trigger isn't just mirroring `updated_at`); republish (after a deliberate delay) → `published_at` still unchanged, `updated_at` changed again. Exactly matches the approved spec.
+- **Cleanup verified exhaustively**: every temporary need/pack/link created across all of the above was deleted, then re-queried by name pattern and by `select=*` on `starter_pack_needs` — `0` rows remain anywhere. Database is back to its exact pre-test state (still 0 real starter packs).
+- **`npx tsc --noEmit`**: pass. **`next lint`**: pass (only the same pre-existing, unrelated `<img>` warnings). **Clean production build**: pass (dev server stopped first, as established).
+
+### Files changed this task
+
+New: `supabase/migrations/20260905100000_starter_packs_phase2_schema.sql`. No frontend file touched, per this phase's explicit scope.
+
+### Remaining limitations
+
+None of the new schema is wired into any UI yet — `starter_pack_needs` isn't read by the public detail page (still using the `ILIKE` approximation from §22's audit), and the admin editor has no inputs for `role_label`/`best_for_label`/`pricing_label`/pack-level `featured`/`sort_order` yet. That's Phase 3 (admin CMS) and Phase 4 (public pages), both still awaiting separate approval per the phased-rollout instruction.
+
+**Known limitation, inherited from `blog_posts` by design, not a new bug:** `trg_starter_pack_published_at` only fires on `UPDATE`, never `INSERT`. If a pack is ever created with `published: true` in a single INSERT (the current admin editor's UI does allow toggling "Published" on before the very first save of a brand-new pack), `published_at` will stay `NULL` for that pack, since no `UPDATE` ever occurred to trigger the sync. `blog_posts`' own `sync_blog_post_status` trigger has the identical `BEFORE UPDATE`-only limitation today — matching that behavior exactly was the explicit approved instruction for this phase, not an oversight. Worth a conscious decision (not a silent fix) if Phase 3's admin CMS work wants to close this gap, e.g. by defaulting new packs to draft-only on creation, or adding a mirrored `BEFORE INSERT` trigger.
+
+**Status: applied, verified live, committed and pushed.**
+
 ---
 
 ## Next Session Handoff
