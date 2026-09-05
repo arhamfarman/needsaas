@@ -699,6 +699,31 @@ None known for `get_opportunity_feed()` itself — it now executes successfully,
 
 **Status: fixed, fully verified end-to-end, not committed/pushed/deployed.** Shell cleanup performed as part of this task's verification (see handoff below) — dev server was stopped for the build and not restarted, so no local server is currently running.
 
+## 22. Starter Packs audit + Phase 1 security fix (2026-09-05) — draft-pack join-table RLS leak, fixed and verified live
+
+A full Starter Packs audit (schema, routes, admin CMS, RLS, live data) found the feature is a genuine, working foundation — not vaporware — but incomplete against the intended product scope (no `featured`/`sort_order`/`published_at` on packs, no real `starter_pack_needs` relation, no blog-post-linking UI, no per-product blurb field in the admin editor, a dead `starter_pack_categories` query on the detail page, no delete confirmation). Full findings recorded for Phase 2+; only Phase 1 (a real security issue found during the audit) was approved and implemented this pass.
+
+### The issue
+
+`starter_packs` itself correctly restricts SELECT to `published = true OR admin`. The four tables that hang off it — `starter_pack_products`, `starter_pack_faqs`, `starter_pack_blog_posts`, `starter_pack_categories` — were instead given an unconditional `USING (true)` SELECT policy with no check on the parent pack's `published` state at all. Practical impact: a draft pack's own title/slug/description stayed correctly hidden, but its product list, FAQs, linked blog posts, and category tags were all publicly readable via a direct REST query against these join tables if the pack's UUID was known or enumerated (e.g. `GET /rest/v1/starter_pack_faqs?starter_pack_id=eq.<draft-uuid>` returned real draft content, unauthenticated). No PII involved — these are curation/marketing rows, not user data — but a real "draft content should not be publicly readable" gap.
+
+### The fix
+
+`supabase/migrations/20260905090000_fix_starter_pack_join_table_rls.sql` — re-creates each table's `_select` policy to require the parent `starter_packs.published = true` OR the caller's own `profiles.is_admin = true`, mirroring `starter_packs`' own policy through the FK. Pure narrowing of an existing SELECT policy; no INSERT/UPDATE/DELETE policy on any of the four tables was touched, and `TO anon, authenticated` is unchanged. Applied by the user via the Supabase SQL Editor.
+
+### Live verification (2026-09-05)
+
+Rather than relying on logical review alone, ran a real, reversible functional test against the live database as the admin account:
+1. Created a temporary **draft** pack (`published: false`) and a FAQ row on it.
+2. Read that FAQ as a genuinely unauthenticated request (anon key, no `Authorization` header): **0 rows returned** — the leak is closed.
+3. Read the same FAQ as the admin (`is_admin = true`): **1 row returned**, full content intact — the admin bypass still works.
+4. Published the pack, re-read as anon: **1 row returned** — confirms the fix tracks the pack's real `published` state rather than blanket-blocking anon reads.
+5. Deleted the test FAQ and test pack, then re-queried both tables directly: **0 rows remain in either** — the database is back to its exact pre-test state (still 0 real starter packs, consistent with every prior check this session).
+
+Also verified: `git status` showed only the one new migration file both before and after this test (the test itself was pure Supabase REST calls, no local file touched); `npx tsc --noEmit`, `next lint`, and a clean `rm -rf .next && npm run build` all passed before the migration was applied.
+
+**Status: fixed, applied, verified live, committed and pushed.** Phase 2 (schema additions: `featured`/`sort_order`/`published_at` on packs, per-product role/best-for/price-label, and a real `starter_pack_needs` relation) is scoped and awaiting separate approval — not started.
+
 ---
 
 ## Next Session Handoff
