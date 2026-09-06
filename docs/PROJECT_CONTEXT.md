@@ -758,7 +758,7 @@ None of the new schema is wired into any UI yet — `starter_pack_needs` isn't r
 
 **Status: applied, verified live, committed and pushed.**
 
-## 24. Starter Packs Phase 3 — Admin CMS implementation (2026-09-05) — implemented and verified live; not committed/pushed
+## 24. Starter Packs Phase 3 — Admin CMS implementation (2026-09-05) — implemented, verified live, committed and pushed
 
 Approved implementation of the admin-only management UI for everything Phase 2 added, scoped strictly to `components/starter-pack-admin.tsx` (plus the type additions in `lib/types.ts` this needed) — no public Starter Pack page touched, no schema change.
 
@@ -801,7 +801,50 @@ Modified: `components/starter-pack-admin.tsx` (near-complete rewrite), `lib/type
 
 Everything else flagged as a remaining limitation in §22/§23 (no public-page wiring yet, the `published_at` INSERT-time edge case) is unchanged by this task — both are still open, and public-page wiring is Phase 4.
 
+**Status: implemented, verified live, committed and pushed** as `f5ceff5` ("Complete Starter Packs admin CMS") — includes a follow-up fix, applied and reviewed before that commit, correcting a `sort_order` collision bug in `addProduct`/`addBlogPost`/`addNeed` (new items appended after a removal could reuse an already-used position; fixed to compute one past the current maximum instead of using array length).
+
+## 25. Starter Packs Phase 4 — public page integration (2026-09-06) — implemented and verified live; not committed/pushed
+
+Wires the public `/starter-packs` and `/starter-packs/[slug]` pages up to everything Phase 2/3 added. No schema change, no admin CMS change.
+
+### What shipped
+
+- **Detail page**: replaced the `needs.description ILIKE '%industry%'` approximation with a real `starter_pack_needs` join (`link.need`), ordered by the admin-curated `sort_order` instead of `need_score` — Related Needs is now genuinely admin-curated, not a text-match guess. Extended the `starter_pack_products` select with `role_label`/`best_for_label`/`pricing_label` and rendered all three (plus the pre-existing `blurb`) only when non-null. Wired up `starter_pack_categories` (fetched since Phase 1 but never rendered) as a small badge row in the hero. Added `.error` handling to all six queries; the main pack query now returns a distinct `<ErrorState />` on a genuine failure instead of falling through to `notFound()` (previously indistinguishable — a real outage would have quietly served a 404). The four secondary sections (products, FAQs, Needs, blog posts) now render a `<SectionError />` message on failure instead of silently rendering nothing or a misleading "being curated" empty-state message.
+- **List page**: added `featured`/`sort_order` to the select, ordered `sort_order` then `title` as a deterministic tiebreak, split into a "Featured Starter Packs" section and an "All Starter Packs" section (featured packs excluded from the second). Added a distinct error state (previously indistinguishable from "genuinely no packs published yet").
+- **JSON-LD**: added `starterPackJsonLd()` and `starterPackListJsonLd()` to `components/json-ld.tsx`, following the exact pattern of the existing helpers (`blogPostJsonLd`, `breadcrumbJsonLd`) — optional-field spreading, no invented schema properties. The detail page's `CollectionPage` object now goes through the shared helper instead of being built inline; the FAQ `FAQPage` object was left inline (not named in scope, no existing shared helper for it, left unchanged). The list page gained `ItemList` JSON-LD, which it previously had none of.
+- **Incidental, semantically-required fix**: pack cards in the list changed from `<h2>` to `<h3>`, since the new Featured/All section headers are now the page's real `<h2>`s — not touching this would have produced duplicate/incorrect heading levels under the new structure.
+
+### 🔴 Bug found and fixed during live testing: stale published/draft state from Next's fetch cache
+
+Not in the original requirements list, but directly blocking verification of items 1–3 in the required test list. Publishing Pack A via the admin CMS and immediately reloading its public detail page kept 404-ing — the exact "draft pack detail routes return not-found" behavior, except now wrongly applied to a page that had just been published. Root cause: `supabase-js`'s REST calls run through the global `fetch`, which Next.js 13's App Router caches indefinitely by default inside a Server Component unless a route opts out. The very first render of that slug (while still draft) got cached as "not found," and nothing in either page ever invalidated it.
+
+This is a pre-existing characteristic of every server-rendered page in this app using the plain `supabase` client (blog, products, needs, etc. are all equally exposed) — it was never caught before because this is the first time this session a "change data via admin → immediately reload the public page" round-trip was actually tested end-to-end. Fixing it app-wide would be a large, unrelated refactor, explicitly out of this phase's scope. Fixed narrowly, only on the two files already being changed in this phase: added `export const revalidate = 0` to both `app/starter-packs/page.tsx` and `app/starter-packs/[slug]/page.tsx`, forcing a fresh query on every request. Verified live, both directions, without restarting the server: unpublish → immediate 404; republish → immediate correct render. Confirmed at build time too — `/starter-packs` changed from a static (`○`) to a dynamic (`λ`) route in the build output, exactly as `revalidate = 0` should produce.
+
+**Not fixed elsewhere.** The same risk likely exists on every other public page in this app (blog posts, products, needs, category pages) — flagging this as a real, verified finding worth a deliberate follow-up decision, not something to silently patch page-by-page as it's noticed.
+
+### Live verification (2026-09-06), real temporary data, all cleaned up after
+
+- Created two temporary packs (draft "Pack A" with a full set of relationships — one real product with all four label fields populated, one real category, one temp Need, one temp published blog post, one FAQ; published+featured "Pack B" with a lower `sort_order`) plus the temp Need and temp blog post they reference.
+- **Draft hiding**: Pack A absent from the list page and 404s at its detail URL while `published: false`.
+- **Publish → appears**: after publishing (and the cache fix), Pack A's detail page renders every section correctly — role/best-for/pricing labels and blurb all visible on the Grammarly row, "Marketing" category badge in the hero, the temp Need under Related Needs, the temp post under Related Articles, the FAQ in the accordion.
+- **Featured/ordering**: list page shows Pack B under "Featured Starter Packs" and Pack A under "All Starter Packs" (not duplicated), matching `sort_order`; the `ItemList` JSON-LD reflects the same order.
+- **Remove/re-add**: deleted the `starter_pack_needs` link — Related Needs section correctly disappeared entirely (not shown empty); re-added it — section reappeared with the same Need.
+- **JSON-LD spot-checked directly** (parsed the actual `<script type="application/ld+json">` tags): `CollectionPage`/`hasPart`, `FAQPage`, `BreadcrumbList` on the detail page; `ItemList` on the list page — all correct, all real data.
+- **Query-failure error states**: verified by code review rather than a forced live failure — triggering a genuine Supabase error safely (without touching working RLS/infrastructure) wasn't practical, so this one item is confirmed by reading the branching logic rather than observing it fire, unlike everything else above. The pattern itself (check `.error`, branch before falling through to `notFound()`/empty-state) is the same one already proven live multiple times elsewhere this session.
+- **Cleanup**: both temp packs, the temp Need, and the temp blog post deleted; re-queried by name across every table touched — `0` rows remain. The real underlying product (Grammarly) and category (Marketing) used in the test were confirmed still present and untouched.
+- **`npx tsc --noEmit`**: pass. **`npm run lint`**: pass (only pre-existing, unrelated `<img>` warnings). **Clean production build**: pass, all routes generated, `/starter-packs` correctly shows as dynamic in the route output.
+
+### Files changed this task
+
+Modified: `app/starter-packs/page.tsx`, `app/starter-packs/[slug]/page.tsx`, `components/json-ld.tsx`. No schema, no admin CMS file touched.
+
+### Remaining limitations
+
+The query-failure error-state code path (both pages) is verified by review, not by a live-triggered failure — see above. The same stale-fetch-cache risk found here likely applies to other public pages in this app; not addressed anywhere outside the two files in this phase's scope.
+
 **Status: implemented, verified live, not committed/pushed.**
+
+**Re-confirmed in a follow-up session (2026-09-06, same day):** re-read every line of both pages and `components/json-ld.tsx` against the requirements above (ILIKE→`starter_pack_needs` replacement, `link.need` rendering, the three curation labels rendered only when non-null, categories in the hero, `.error` handling and the pack-error/not-found distinction, the Featured/All split with no duplication, `sort_order`-then-`title` ordering, the shared `starterPackJsonLd`/`starterPackListJsonLd` helpers) — no gaps found, no code changes needed. Independently re-ran `npx tsc --noEmit` (clean), `npm run lint` (only the same pre-existing `<img>` warnings), and `npx next build` (exit 0, `/starter-packs` and `/starter-packs/[slug]` both `λ` dynamic as expected). Also re-checked live DB state via the anon key: `starter_packs` and all five join tables (`starter_pack_products/faqs/blog_posts/categories/needs`) are all empty, and a name search for the session's temp entities ("Pack A"/"temp" needs and blog posts) returns nothing — corroborates the cleanup claimed above; no new temp data was created this pass since the code-level and DB-level checks were sufficient to confirm correctness without repeating the full live browser walkthrough. RLS re-read directly from the migration files (`20260806120023_..._starter_packs.sql.sql`, `20260905090000_fix_starter_pack_join_table_rls.sql`, `20260905100000_starter_packs_phase2_schema.sql`) confirms all six tables gate SELECT on the parent pack's `published = true` (or admin), so unpublished/draft data is not exposed by any of the queries this phase added or changed.
 
 ---
 

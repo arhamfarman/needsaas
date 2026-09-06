@@ -145,6 +145,43 @@ export function blogPostJsonLd(post: {
   };
 }
 
+export function starterPackJsonLd(pack: {
+  title: string;
+  description: string | null;
+  industry: string | null;
+  canonicalUrl: string;
+  products: { name: string | null; tagline: string | null }[];
+}) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: pack.title,
+    ...(pack.description && { description: pack.description }),
+    url: pack.canonicalUrl,
+    ...(pack.industry && { about: pack.industry }),
+    ...(pack.products.length > 0 && {
+      hasPart: pack.products.map((p) => ({
+        '@type': 'SoftwareApplication',
+        ...(p.name && { name: p.name }),
+        ...(p.tagline && { description: p.tagline }),
+      })),
+    }),
+  };
+}
+
+export function starterPackListJsonLd(packs: { title: string; url: string }[]) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    itemListElement: packs.map((p, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: p.title,
+      url: p.url,
+    })),
+  };
+}
+
 export function websiteJsonLd() {
   return {
     '@context': 'https://schema.org',
