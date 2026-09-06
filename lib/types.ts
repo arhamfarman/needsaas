@@ -282,6 +282,9 @@ export type StarterPack = {
   cover_image_url: string | null;
   industry: string | null;
   published: boolean;
+  featured: boolean;
+  sort_order: number;
+  published_at: string | null;
   seo_title: string | null;
   seo_description: string | null;
   created_by: string | null;
@@ -296,6 +299,9 @@ export type StarterPackProduct = {
   sort_order: number;
   featured: boolean;
   blurb: string | null;
+  role_label: string | null;
+  best_for_label: string | null;
+  pricing_label: string | null;
   product?: Product;
 };
 
@@ -305,6 +311,22 @@ export type StarterPackFaq = {
   question: string;
   answer: string;
   sort_order: number;
+};
+
+export type StarterPackBlogPost = {
+  id: string;
+  starter_pack_id: string;
+  blog_post_id: string;
+  sort_order: number;
+  blog_post?: BlogPost;
+};
+
+export type StarterPackNeed = {
+  id: string;
+  starter_pack_id: string;
+  need_id: string;
+  sort_order: number;
+  need?: Need;
 };
 
 export type BlogPost = {

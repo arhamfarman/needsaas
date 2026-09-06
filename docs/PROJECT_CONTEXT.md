@@ -758,6 +758,51 @@ None of the new schema is wired into any UI yet — `starter_pack_needs` isn't r
 
 **Status: applied, verified live, committed and pushed.**
 
+## 24. Starter Packs Phase 3 — Admin CMS implementation (2026-09-05) — implemented and verified live; not committed/pushed
+
+Approved implementation of the admin-only management UI for everything Phase 2 added, scoped strictly to `components/starter-pack-admin.tsx` (plus the type additions in `lib/types.ts` this needed) — no public Starter Pack page touched, no schema change.
+
+### What shipped
+
+- **Product recommendations**: each pack-product row now has editable `role_label`, `best_for_label`, `pricing_label` (short `Input`s) and `blurb` (a `Textarea`), each saved individually via `onBlur` straight to `starter_pack_products` — matching the existing auto-save-per-action convention already used by the featured-toggle, rather than waiting on the dialog's main Save button. Order and featured-flag controls are untouched.
+- **Blog-post linking**: new "Related Blog Articles" section using a from-scratch searchable picker (see below), backed by `starter_pack_blog_posts`. Add/remove/reorder (up/down, swapping `sort_order` — same pattern as products), duplicate-prevention via client-side filtering of already-linked posts (backed by the real `UNIQUE(starter_pack_id, blog_post_id)` constraint confirmed live before writing any code — see verification below). Admin sees both draft and published posts in the picker (RLS already restricts who can reach this component at all).
+- **Needs linking**: identical shape, backed by `starter_pack_needs`, capped at 300 candidates ordered alphabetically (no debounced server-side search — the candidate list is fetched once and filtered client-side, consistent with how the products picker already worked).
+- **Pack metadata**: `featured` switch and numeric `sort_order` input added next to the existing `published` switch; `published_at` shown as plain read-only formatted text ("Not yet published" when null) with no input control at all, so it cannot be manually overridden.
+- **Delete safety**: the list's delete action now opens an `AlertDialog` (not the plain `Dialog` used elsewhere in this codebase — `AlertDialog` is the semantically correct primitive for a destructive confirmation, and matches the pattern already added for admin-toggle confirmation in §18) naming the pack and explicitly distinguishing what's actually deleted (the pack's own FAQs) from what's merely unlinked (products, categories, blog posts, Needs — the underlying records survive).
+- **List improvements**: client-side search/filter over title/slug/industry (no pagination needed — this table has a handful of rows), Draft/Published/Featured badges per row, a dedicated load-error state with a "Try again" button (previously the list silently showed the empty state on a genuine fetch failure — same bug class already fixed twice this session in `OpportunityFeed`/`BuilderInsights`).
+- **Error handling**: every Supabase call in the file — the list's `load()`, every fetch inside the editor (products/categories/blog posts/Needs/FAQs, both the "all available" and "already linked" queries), and every mutation — now checks `.error` and surfaces it via `toast.error(message, { description })`, matching the richest existing convention in the codebase (`app/admin/needs/page.tsx`). Previously several of these (the list's own `load()`, the editor's initial fetches, the categories/FAQ save steps) failed silently.
+
+### New UI primitive used, not built
+
+`components/ui/command.tsx` + `popover.tsx` — both already vendored in this project (shadcn boilerplate) but imported nowhere until now. Used to build a small local `SearchSelectPopover` component (inside `starter-pack-admin.tsx`, not a new shared file) reused for both the blog-post and Needs pickers. The existing product picker (a plain `<Select>`) was left as-is — the product catalog is small (~51) and it already works; introducing search there wasn't necessary.
+
+### Verified before writing any code, per explicit instruction not to assume the migration comment
+
+`starter_pack_blog_posts_starter_pack_id_blog_post_id_key` — confirmed genuinely enforced: created a real temporary draft pack + draft blog post, linked them, attempted a duplicate insert of the same pair, got a real `409`/`23505` naming that exact constraint. Cleaned up immediately after.
+
+### Live verification (2026-09-05), driven through the actual UI, all test data cleaned up after
+
+- **List view**: search/filter narrows and clears correctly (verified matching and non-matching queries); Featured star toggle works from the list and is reflected in the editor; Draft/Featured badges render correctly.
+- **Products**: added a real product (Asana) via the existing picker; filled in `role_label`/`best_for_label`/`pricing_label`/`blurb` and blurred each field; re-queried the database directly and confirmed all four values persisted exactly as typed.
+- **Blog posts**: created two real temporary draft posts; the picker correctly listed both with a Draft sublabel; typing a search term narrowed to the matching one; added both, confirmed the second add's picker excluded the already-linked first post (duplicate-prevention); reordered them via the up arrow and confirmed via direct query that `sort_order` actually swapped (not just visually).
+- **Needs**: created two real temporary needs; picker listed them alongside real existing needs with a status sublabel; linked one, confirmed via direct query.
+- **Delete confirmation**: opened the `AlertDialog`, clicked Cancel, confirmed via direct query the pack was untouched; reopened, clicked Delete, confirmed via direct query that the pack, and every one of its `starter_pack_products`/`faqs`/`categories`/`blog_posts`/`needs` rows, were gone — while the underlying Asana product and all four temporary blog posts/Needs used in testing were **still present**, confirming cascade removed only the associations, never the underlying records.
+- **Anonymous write rejection**: attempted INSERT on `starter_packs`/`starter_pack_products`/`starter_pack_needs` (all three correctly returned `401`/`42501`) and UPDATE + DELETE on the test pack itself as pure anonymous requests (no `Authorization` header at all). Both of those returned a misleading `204` — the same PostgREST quirk documented earlier this session (RLS silently filters to zero matching rows; the status code alone doesn't prove anything) — so both were re-verified with the real admin session afterward: the pack's title was unchanged and the pack still existed, proving neither anonymous write actually took effect.
+- **Cleanup verified exhaustively**: every temporary pack/blog post/Need created across this whole test pass was deleted, then re-queried by name pattern across all three tables — `0` rows remain anywhere.
+- **`npx tsc --noEmit`**: pass. **`npm run lint`**: pass (only pre-existing, unrelated `<img>` warnings). **Clean production build**: pass, all routes generated, `/admin/starter-packs` route size grew from 11.3 kB to 25.4 kB (expected, given the substantial new functionality and the newly-adopted Command/Popover primitives).
+
+### Files changed this task
+
+Modified: `components/starter-pack-admin.tsx` (near-complete rewrite), `lib/types.ts` (extended `StarterPack`/`StarterPackProduct`, added `StarterPackBlogPost`/`StarterPackNeed`). No other file touched — confirmed via `git status`.
+
+### Limitations
+
+**Authenticated non-admin write testing was not performed.** No second real user account exists in this database, and per explicit instruction this task did not fabricate one or temporarily alter another real user's `is_admin` flag to manufacture one. What *was* tested and proven: true anonymous (unauthenticated) writes are correctly rejected by RLS across every table this phase touches. Testing an authenticated-but-non-admin user would additionally require RLS to distinguish "logged in" from "is_admin" — which is exactly the condition every policy in this system already checks explicitly (`EXISTS (... AND is_admin = true)`), so there is no code path by which an authenticated non-admin could be treated differently from anonymous for these specific writes; this is a reasoned inference from reading the policies, not a live-tested confirmation, and a real second account remains the only way to close that gap definitively.
+
+Everything else flagged as a remaining limitation in §22/§23 (no public-page wiring yet, the `published_at` INSERT-time edge case) is unchanged by this task — both are still open, and public-page wiring is Phase 4.
+
+**Status: implemented, verified live, not committed/pushed.**
+
 ---
 
 ## Next Session Handoff
