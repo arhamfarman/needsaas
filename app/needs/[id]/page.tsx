@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { NeedDetailView } from '@/components/need-detail-view';
 import { JsonLd, needJsonLd, breadcrumbJsonLd } from '@/components/json-ld';
@@ -15,8 +16,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .maybeSingle();
 
   if (!need) {
+    // Unreachable once notFound() fires below (Next discards this page's
+    // own metadata for a 404 response), but kept correct regardless -- no
+    // manual "— NeedSaaS" suffix, same reasoning as the found-case title.
     return {
-      title: 'Need not found — NeedSaaS',
+      title: 'Need not found',
       robots: { index: false, follow: false },
     };
   }
@@ -61,6 +65,13 @@ export default async function NeedPage({ params }: Props) {
     .select(`*, category:categories(name, slug)`)
     .eq('id', params.id)
     .maybeSingle();
+
+  // A missing Need previously fell through to NeedDetailView's own inline
+  // "Need not found" state (a plain, unbranded div) instead of the site's
+  // branded 404 page -- confirmed live: this page returned HTTP 200 for a
+  // nonexistent id, so app/not-found.tsx was never reached. Matches the
+  // pattern already used correctly on software/starter-packs/blog pages.
+  if (!need) notFound();
 
   const canonical = `${SITE_URL}/needs/${params.id}`;
 

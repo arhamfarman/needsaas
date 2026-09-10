@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { ProductDetailView } from '@/components/product-detail-view';
 import { JsonLd, softwareJsonLd, breadcrumbJsonLd } from '@/components/json-ld';
@@ -15,8 +16,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .maybeSingle();
 
   if (!product) {
+    // Unreachable once notFound() fires below -- kept correct regardless.
     return {
-      title: 'Software not found — NeedSaaS',
+      title: 'Software not found',
       robots: { index: false, follow: false },
     };
   }
@@ -61,6 +63,11 @@ export default async function ProductPage({ params }: Props) {
     .select(`*, category:categories(name, slug), profile:profiles(username, verified)`)
     .eq('id', params.id)
     .maybeSingle();
+
+  // Same fix as app/needs/[id]/page.tsx -- was returning HTTP 200 with
+  // ProductDetailView's own inline "Product not found" state instead of
+  // the branded 404 page.
+  if (!product) notFound();
 
   const canonical = `${SITE_URL}/products/${params.id}`;
 

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { BuilderProfileView } from '@/components/builder-profile-view';
 import { JsonLd, builderJsonLd, breadcrumbJsonLd } from '@/components/json-ld';
@@ -15,6 +16,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .maybeSingle();
 
   if (!builder) {
+    // Unreachable once notFound() fires below -- kept correct regardless.
+    // (This one already needed the explicit suffix for the same
+    // layout-inheritance reason as the found-case title above.)
     return {
       title: 'Builder not found — NeedSaaS',
       robots: { index: false, follow: false },
@@ -23,10 +27,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const b = builder as any;
   const name = b.full_name || `@${b.username}`;
-  // Root layout's title template already appends "— NeedSaaS" (see
-  // app/layout.tsx) -- don't also append it here, or the browser tab shows
-  // it twice. Same fix as app/needs/[id]/page.tsx.
-  const title = `${name}, Builder`;
+  // NOT the same fix as the other [id]/[slug] pages -- this route has its
+  // own app/builders/layout.tsx, which sets a static string `metadata.title`
+  // of its own. That breaks inheritance of the root layout's title template
+  // for everything under /builders: confirmed live, a real builder page
+  // was rendering just "Name, Builder" with no "— NeedSaaS" suffix at all
+  // once the template-reliant version of this line shipped. So this one
+  // page needs the suffix appended explicitly instead of relying on the
+  // template like every other detail page does.
+  const title = `${name}, Builder — NeedSaaS`;
   const description = (b.bio || `Software builder on NeedSaaS`).slice(0, 160);
   const canonical = `${SITE_URL}/builders/${params.id}`;
   const ogImage = b.avatar_url || `${SITE_URL}/Logo.png`;
@@ -57,6 +66,11 @@ export default async function BuilderPage({ params }: Props) {
     .select(`*`)
     .eq('id', params.id)
     .maybeSingle();
+
+  // Same fix as app/needs/[id]/page.tsx and app/products/[id]/page.tsx --
+  // was returning HTTP 200 with BuilderProfileView's own inline "Builder
+  // not found" state instead of the branded 404 page.
+  if (!builder) notFound();
 
   const { count: productCount } = await supabase
     .from('products')
