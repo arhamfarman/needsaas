@@ -126,6 +126,51 @@ export function markdownToHtml(md: string): string {
       continue;
     }
 
+    // GFM-style pipe table: a row containing "|" immediately followed by a
+    // separator row like |---|:---:|---:|. Supports left/center/right
+    // alignment via leading/trailing colons in the separator. Cell content
+    // is already HTML-escaped (the whole input was escaped up front, same
+    // as every other block type here) and run through inlineMd() so links,
+    // bold, etc. still work inside cells. Wrapped in a scroll container so a
+    // wide table doesn't overflow the article column on narrow screens.
+    const tableSeparatorRe = /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?$/;
+    if (trimmed.includes('|') && i + 1 < lines.length && tableSeparatorRe.test(lines[i + 1].trim())) {
+      closeList();
+      const splitRow = (row: string) =>
+        row.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim());
+      const headerCells = splitRow(trimmed);
+      const aligns = splitRow(lines[i + 1].trim()).map((c) => {
+        const left = c.startsWith(':');
+        const right = c.endsWith(':');
+        if (left && right) return 'center';
+        if (right) return 'right';
+        if (left) return 'left';
+        return null;
+      });
+      i += 2;
+      const bodyRows: string[][] = [];
+      while (i < lines.length && lines[i].trim().includes('|') && lines[i].trim() !== '') {
+        bodyRows.push(splitRow(lines[i]));
+        i++;
+      }
+      const alignAttr = (idx: number) => (aligns[idx] ? ` style="text-align:${aligns[idx]}"` : '');
+      html.push('<div class="table-wrap"><table>');
+      html.push(
+        '<thead><tr>' +
+          headerCells.map((c, idx) => `<th${alignAttr(idx)}>${inlineMd(c)}</th>`).join('') +
+          '</tr></thead>'
+      );
+      html.push(
+        '<tbody>' +
+          bodyRows
+            .map((row) => '<tr>' + row.map((c, idx) => `<td${alignAttr(idx)}>${inlineMd(c)}</td>`).join('') + '</tr>')
+            .join('') +
+          '</tbody>'
+      );
+      html.push('</table></div>');
+      continue;
+    }
+
     // Ordered list item
     if (/^\d+\.\s+/.test(trimmed)) {
       if (listTag !== 'ol') {
@@ -152,4 +197,60 @@ export function markdownToHtml(md: string): string {
   }
   closeList();
   return html.join('\n');
+}
+
+// Extracts FAQ question/answer pairs for FAQPage structured data.
+//
+// blog_posts has no structured FAQ table (unlike starter_pack_faqs), so
+// there's nowhere to store FAQs separately from the article body. Instead,
+// authors write an H2 section titled "FAQ" or "Frequently Asked Questions",
+// with each question as an H3 and its answer as the paragraph(s) that
+// follow -- exactly the structure already used when outlining these
+// articles. This is a plain-text scan of the raw Markdown source (not the
+// rendered HTML), so JSON-LD fields never carry markup. Returns [] if the
+// post has no such section, so pages without FAQs simply emit no FAQPage
+// JSON-LD rather than an empty/broken one.
+export function extractFaqsFromMarkdown(md: string): { question: string; answer: string }[] {
+  if (!md?.trim()) return [];
+  const lines = md.split('\n');
+  const faqs: { question: string; answer: string }[] = [];
+
+  let inFaqSection = false;
+  let currentQuestion: string | null = null;
+  let currentAnswer: string[] = [];
+
+  const flush = () => {
+    if (currentQuestion && currentAnswer.length > 0) {
+      faqs.push({ question: currentQuestion.trim(), answer: currentAnswer.join(' ').trim() });
+    }
+    currentQuestion = null;
+    currentAnswer = [];
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    const h2 = line.match(/^##\s+(.*)$/);
+    const h3 = line.match(/^###\s+(.*)$/);
+
+    if (h2) {
+      if (inFaqSection) {
+        flush();
+        break; // left the FAQ section -- nothing after it is a question
+      }
+      inFaqSection = /^(faq|frequently asked questions)s?$/i.test(h2[1].trim());
+      continue;
+    }
+    if (!inFaqSection) continue;
+
+    if (h3) {
+      flush();
+      currentQuestion = h3[1].trim();
+      continue;
+    }
+    if (currentQuestion && line) {
+      currentAnswer.push(line);
+    }
+  }
+  flush();
+  return faqs;
 }

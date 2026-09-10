@@ -2,13 +2,19 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { markdownToHtml } from '@/lib/markdown';
-import { JsonLd, blogPostJsonLd, breadcrumbJsonLd } from '@/components/json-ld';
+import { markdownToHtml, extractFaqsFromMarkdown } from '@/lib/markdown';
+import { JsonLd, blogPostJsonLd, breadcrumbJsonLd, faqPageJsonLd } from '@/components/json-ld';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Package, ArrowRight, Calendar } from 'lucide-react';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://needsaas.com';
+
+// Same fix as app/starter-packs/[slug]/page.tsx: supabase-js's REST calls run
+// through Next's global fetch, which the App Router caches indefinitely by
+// default in a Server Component. Without this, editing or unpublishing an
+// already-visited post wouldn't reflect until the server process restarted.
+export const revalidate = 0;
 
 type Props = { params: { slug: string } };
 
@@ -95,6 +101,7 @@ export default async function BlogPostPage({ params }: Props) {
   const authorName = author?.full_name?.trim() || (author?.username ? `@${author.username}` : null);
   const canonical = post.canonical_url || `${SITE_URL}/blog/${post.slug}`;
   const contentHtml = markdownToHtml(post.content || '');
+  const faqs = extractFaqsFromMarkdown(post.content || '');
 
   return (
     <>
@@ -107,6 +114,7 @@ export default async function BlogPostPage({ params }: Props) {
         author_name: authorName,
         canonicalUrl: canonical,
       })} />
+      {faqs.length > 0 && <JsonLd data={faqPageJsonLd(faqs)} />}
       <JsonLd data={breadcrumbJsonLd([
         { name: 'Home', url: SITE_URL },
         { name: 'Blog', url: `${SITE_URL}/blog` },

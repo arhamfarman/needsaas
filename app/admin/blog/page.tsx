@@ -191,7 +191,11 @@ const previewClasses = cn(
   '[&_hr]:border-border [&_hr]:my-6',
   '[&_strong]:font-semibold',
   '[&_em]:italic',
-  '[&_del]:line-through'
+  '[&_del]:line-through',
+  '[&_.table-wrap]:overflow-x-auto [&_.table-wrap]:mb-4',
+  '[&_table]:w-full [&_table]:border-collapse [&_table]:text-sm',
+  '[&_th]:border [&_th]:border-border [&_th]:bg-muted [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold',
+  '[&_td]:border [&_td]:border-border [&_td]:px-3 [&_td]:py-2 [&_td]:align-top'
 );
 
 // ---------------------------------------------------------------------------

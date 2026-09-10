@@ -11,6 +11,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/builders`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.7 },
     { url: `${SITE_URL}/starter-packs`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.8 },
     { url: `${SITE_URL}/software`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.9 },
+    { url: `${SITE_URL}/blog`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.7 },
   ];
 
   // Products
@@ -81,6 +82,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: new Date(sp.updated_at || new Date()),
       changeFrequency: 'weekly',
       priority: 0.8,
+    });
+  });
+
+  // Blog posts
+  const { data: blogPosts } = await supabase
+    .from('blog_posts')
+    .select('slug, updated_at')
+    .eq('published', true);
+
+  (blogPosts ?? []).forEach((bp: any) => {
+    entries.push({
+      url: `${SITE_URL}/blog/${bp.slug}`,
+      lastModified: new Date(bp.updated_at || new Date()),
+      changeFrequency: 'weekly',
+      priority: 0.7,
     });
   });
 

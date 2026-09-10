@@ -248,3 +248,23 @@
   border: none;
   border-top: 1px solid hsl(var(--border));
 }
+.blog-content .table-wrap {
+  overflow-x: auto;
+}
+.blog-content table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375em;
+}
+.blog-content th,
+.blog-content td {
+  border: 1px solid hsl(var(--border));
+  padding: 0.5em 0.75em;
+  text-align: left;
+  vertical-align: top;
+}
+.blog-content th {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+  font-weight: 600;
+}

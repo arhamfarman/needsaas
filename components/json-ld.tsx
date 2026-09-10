@@ -169,6 +169,18 @@ export function starterPackJsonLd(pack: {
   };
 }
 
+export function faqPageJsonLd(faqs: { question: string; answer: string }[]) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqs.map((f) => ({
+      '@type': 'Question',
+      name: f.question,
+      acceptedAnswer: { '@type': 'Answer', text: f.answer },
+    })),
+  };
+}
+
 export function starterPackListJsonLd(packs: { title: string; url: string }[]) {
   return {
     '@context': 'https://schema.org',
