@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import type { Product, Need, Category, Profile, Review } from '@/lib/types';
 import { HeroSearch } from '@/components/hero-search';
 import { ProductCard } from '@/components/product-card';
@@ -30,41 +30,29 @@ const fadeUp = {
 const HERO_MESSAGES = ['Find software for your needs.', 'Or inspire someone to build it.'];
 
 export function LandingHero() {
-  // Starts already showing the full first message (not an empty string) so
-  // the H1 has real, complete text at first paint — search engines and any
-  // crawler that doesn't run the typing animation still see the actual
-  // heading, not blank content that only fills in after hydration.
-  const [text, setText] = useState(HERO_MESSAGES[0]);
+  // Was a character-by-character typewriter that typed each message in,
+  // paused, then deleted it back to nothing before typing the next one.
+  // The very first paint was always the complete first message (so
+  // crawlers and a static screenshot were fine), but every cycle after
+  // that passed through partial/deleting text -- confirmed live, and
+  // exactly what a screen recording of the homepage would catch mid-cycle.
+  // Replaced with a crossfade between two always-complete strings: nothing
+  // ever shows a partial headline during normal use, first paint is still
+  // the full first message, and it respects prefers-reduced-motion (shows
+  // the first message only, no cycling) since this is decorative motion,
+  // not content a reduced-motion visitor needs to see animate.
+  const prefersReducedMotion = useReducedMotion();
   const [msgIdx, setMsgIdx] = useState(0);
-  const [phase, setPhase] = useState<'typing' | 'pausing' | 'deleting'>('pausing');
-  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
-    const currentText = HERO_MESSAGES[msgIdx];
-    let timer: ReturnType<typeof setTimeout>;
+    if (prefersReducedMotion) return;
+    const timer = setInterval(() => {
+      setMsgIdx((i) => (i + 1) % HERO_MESSAGES.length);
+    }, 2600);
+    return () => clearInterval(timer);
+  }, [prefersReducedMotion]);
 
-    if (phase === 'typing') {
-      if (text.length < currentText.length) {
-        timer = setTimeout(() => setText(currentText.slice(0, text.length + 1)), 50);
-      } else {
-        timer = setTimeout(() => setPhase('pausing'), 1800);
-      }
-    } else if (phase === 'pausing') {
-      timer = setTimeout(() => setPhase('deleting'), 400);
-    } else {
-      if (text.length > 0) {
-        timer = setTimeout(() => setText(currentText.slice(0, text.length - 1)), 25);
-      } else {
-        timer = setTimeout(() => {
-          setMsgIdx((i) => (i + 1) % HERO_MESSAGES.length);
-          setPhase('typing');
-        }, 200);
-      }
-    }
-
-    timersRef.current.push(timer);
-    return () => clearTimeout(timer);
-  }, [text, phase, msgIdx]);
+  const text = prefersReducedMotion ? HERO_MESSAGES[0] : HERO_MESSAGES[msgIdx];
 
   return (
     <section className="relative overflow-hidden border-b border-border/40">
@@ -85,14 +73,18 @@ export function LandingHero() {
         </motion.div>
 
         <div className="min-h-[4rem] text-center sm:min-h-[6rem] lg:min-h-[7rem]">
-          <motion.h1
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="font-display text-3xl font-semibold leading-[1.1] tracking-tight text-foreground sm:text-5xl lg:text-6xl"
-          >
-            {text}
-            <span className="ml-0.5 inline-block h-[0.8em] w-[3px] animate-pulse bg-brand align-middle" />
-          </motion.h1>
+          <AnimatePresence mode="wait">
+            <motion.h1
+              key={text}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4 }}
+              className="font-display text-3xl font-semibold leading-[1.1] tracking-tight text-foreground sm:text-5xl lg:text-6xl"
+            >
+              {text}
+            </motion.h1>
+          </AnimatePresence>
         </div>
 
         <motion.p

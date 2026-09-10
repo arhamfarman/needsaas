@@ -126,6 +126,12 @@ function ProductDetailPageInner() {
   async function submitReview() {
     if (!user) { router.push('/signin'); return; }
     if (!product) return;
+    // Belt-and-suspenders: the form is already hidden for the product's own
+    // owner (see the isOwner branch below), but this guards the actual
+    // submit path too in case that check is ever bypassed client-side. The
+    // database-level RLS policy is the real enforcement -- this is just a
+    // clear, non-embarrassing message instead of a raw RLS error.
+    if (user.id === product.owner_id) { toast.error("You can't review your own listing."); return; }
     if (!reviewBody.trim()) { toast.error('Please write a review'); return; }
     setSubmitting(true);
     if (myReview) {
@@ -133,7 +139,10 @@ function ProductDetailPageInner() {
       if (!error) toast.success('Review updated'); else toast.error(error.message);
     } else {
       const { error } = await supabase.from('reviews').insert({ product_id: product.id, user_id: user.id, rating, title: reviewTitle || null, body: reviewBody });
-      if (!error) toast.success('Review posted'); else if (error.code === '23505') toast.error('You already reviewed this product'); else toast.error(error.message);
+      if (!error) toast.success('Review posted');
+      else if (error.code === '23505') toast.error('You already reviewed this product');
+      else if (error.message?.toLowerCase().includes('row-level security')) toast.error("You can't review your own listing.");
+      else toast.error(error.message);
     }
     setSubmitting(false);
     load();
@@ -332,7 +341,11 @@ function ProductDetailPageInner() {
         </h2>
 
         <div className="mb-8 rounded-xl border border-border/60 bg-card/40 p-5">
-          {user ? (
+          {isOwner ? (
+            <p className="text-sm text-muted-foreground">
+              You can&apos;t review your own listing. Reviews are reserved for people who&apos;ve actually used the software.
+            </p>
+          ) : user ? (
             <>
               <div className="mb-3 flex items-center gap-3">
                 <span className="text-sm font-medium text-foreground">{myReview ? 'Edit your review' : 'Write a review'}</span>

@@ -49,7 +49,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
   }
 
-  const title = post.seo_title || `${post.title} — NeedSaaS`;
+  // Root layout's title template already appends "— NeedSaaS" (see
+  // app/layout.tsx) -- don't also append it here, or the browser tab shows
+  // it twice whenever no custom seo_title is set. Same fix as
+  // app/needs/[id]/page.tsx.
+  const title = post.seo_title || post.title;
   const description = post.seo_description || post.excerpt || '';
   const canonical = post.canonical_url || `${SITE_URL}/blog/${post.slug}`;
   const ogImage = post.og_image_url || post.cover_image_url || `${SITE_URL}/Logo.png`;

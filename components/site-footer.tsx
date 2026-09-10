@@ -35,7 +35,11 @@ export function SiteFooter() {
           </div>
         </div>
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-border/40 pt-6 text-xs text-muted-foreground sm:flex-row">
-          <p>&copy; {new Date().getFullYear()} NeedSaaS. All rights reserved.</p>
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 sm:justify-start">
+            <p>&copy; {new Date().getFullYear()} NeedSaaS. All rights reserved.</p>
+            <Link href="/terms" className="hover:text-foreground">Terms</Link>
+            <Link href="/privacy" className="hover:text-foreground">Privacy</Link>
+          </div>
           <p>Find software. Or inspire someone to build it.</p>
         </div>
       </div>

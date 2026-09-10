@@ -23,7 +23,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const b = builder as any;
   const name = b.full_name || `@${b.username}`;
-  const title = `${name} — Builder on NeedSaaS`;
+  // Root layout's title template already appends "— NeedSaaS" (see
+  // app/layout.tsx) -- don't also append it here, or the browser tab shows
+  // it twice. Same fix as app/needs/[id]/page.tsx.
+  const title = `${name}, Builder`;
   const description = (b.bio || `Software builder on NeedSaaS`).slice(0, 160);
   const canonical = `${SITE_URL}/builders/${params.id}`;
   const ogImage = b.avatar_url || `${SITE_URL}/Logo.png`;

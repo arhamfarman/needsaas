@@ -40,7 +40,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: 'Starter Pack not found — NeedSaaS', robots: { index: false, follow: false } };
   }
 
-  const title = pack.seo_title || `${pack.title} — NeedSaaS`;
+  // Root layout's title template already appends "— NeedSaaS" (see
+  // app/layout.tsx) -- don't also append it here, or the browser tab shows
+  // it twice whenever no custom seo_title is set. Same fix as
+  // app/needs/[id]/page.tsx.
+  const title = pack.seo_title || pack.title;
   const description = pack.seo_description || pack.short_description || (pack.description || '').slice(0, 160);
   const canonical = `${SITE_URL}/starter-packs/${params.slug}`;
 

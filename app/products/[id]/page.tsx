@@ -22,7 +22,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   const p = product as any;
-  const title = `${p.name} — ${p.tagline || 'Software on NeedSaaS'}`;
+  // The root layout's title template appends "— NeedSaaS" to every page.
+  // The fallback here previously ended in "...on NeedSaaS", which the
+  // template then doubled for any product missing a tagline. Same fix as
+  // app/needs/[id]/page.tsx.
+  const title = `${p.name} — ${p.tagline || 'Software'}`;
   const description = (p.description || p.tagline || '').slice(0, 160);
   const canonical = `${SITE_URL}/products/${params.id}`;
   const ogImage = p.logo_url || `${SITE_URL}/Logo.png`;

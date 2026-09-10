@@ -148,7 +148,10 @@ function SignInForm() {
         </div>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          By continuing you agree to NeedSaaS&apos;s terms and privacy policy.
+          By continuing you agree to NeedSaaS&apos;s{' '}
+          <Link href="/terms" className="underline hover:text-foreground">Terms of Service</Link>{' '}
+          and{' '}
+          <Link href="/privacy" className="underline hover:text-foreground">Privacy Policy</Link>.
         </p>
       </motion.div>
     </div>

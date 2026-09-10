@@ -22,7 +22,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   const n = need as any;
-  const title = `${n.title} — Need on NeedSaaS`;
+  // Just the raw title here -- the root layout's title template already
+  // appends "— NeedSaaS" to every page (see app/layout.tsx), matching how
+  // every other page type (blog, starter packs, products) builds its own
+  // title. This page used to append "— Need on NeedSaaS" on top of that,
+  // producing a doubled "... — NeedSaaS — NeedSaaS" in the browser tab and
+  // in search results -- confirmed live on every Need page before this fix.
+  const title = n.title;
   const description = (n.description || '').slice(0, 160);
   const canonical = `${SITE_URL}/needs/${params.id}`;
 
