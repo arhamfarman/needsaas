@@ -42,6 +42,11 @@ const TIMELINE_LABELS: Record<string, string> = {
 
 const STAGES: NeedStatus[] = ['open', 'committed', 'building', 'fulfilled'];
 
+// Pledges aren't backed by a real payment today (see submitContribution) --
+// capping the amount keeps a single pledge from displaying as an implausible
+// number (e.g. "$500,000 reward") on a public Need page.
+const PLEDGE_MAX = 1000;
+
 function getDemandLevel(votes: number, reward: number): { label: string; className: string } {
   const score = votes + reward / 10;
   if (score >= 100) return { label: 'High Demand', className: 'text-emerald-600' };
@@ -130,6 +135,7 @@ export function NeedDetailView() {
     if (!need) return;
     const amt = contribAmount ?? (contribCustom ? parseFloat(contribCustom) : null);
     if (!amt || amt < 1) { toast.error('Please enter an amount of at least $1'); return; }
+    if (amt > PLEDGE_MAX) { toast.error(`Pledges are capped at $${PLEDGE_MAX} for now`); return; }
     setContribPending(true);
     const { error } = await supabase.from('contributions').insert({
       need_id: need.id,
@@ -137,7 +143,7 @@ export function NeedDetailView() {
     });
     setContribPending(false);
     if (error) { toast.error(error.message); return; }
-    toast.success(`Thanks for contributing $${amt} to the Build Reward!`);
+    toast.success(`Thanks for pledging $${amt} to the Build Reward!`);
     setShowContribute(false);
     setContribAmount(25); setContribCustom('');
     load();
@@ -324,7 +330,7 @@ export function NeedDetailView() {
         {/* Stats grid */}
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatBox icon={ArrowUp} label="Votes" value={formatNumber(need.vote_count)} />
-          <StatBox icon={DollarSign} label="Reward" value={hasReward ? `$${formatNumber(Math.round(need.reward_amount))}` : '—'} />
+          <StatBox icon={DollarSign} label="Pledged" value={hasReward ? `$${formatNumber(Math.round(need.reward_amount))}` : '—'} />
           <StatBox icon={Users} label="Contributors" value={String(need.contributor_count)} />
           <StatBox icon={Hammer} label="Builders" value={String(interest.length)} />
         </div>
@@ -360,7 +366,7 @@ export function NeedDetailView() {
           className={cn('h-11 rounded-xl px-4', hasReward && 'border-emerald-500/30 text-emerald-600 hover:bg-emerald-50')}
           onClick={() => setShowContribute((v) => !v)}
         >
-          <DollarSign className="mr-1.5 h-4 w-4" /> Contribute to Reward
+          <DollarSign className="mr-1.5 h-4 w-4" /> Pledge to Reward
         </Button>
       </div>
 
@@ -368,9 +374,10 @@ export function NeedDetailView() {
       {showContribute && (
         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-4 overflow-hidden">
           <div className="rounded-2xl border border-border/60 bg-white p-5 shadow-card">
-            <h3 className="font-display text-lg font-semibold">Contribute to the Build Reward</h3>
+            <h3 className="font-display text-lg font-semibold">Pledge to the Build Reward</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              The Build Reward is a shared pool. Multiple users can contribute to encourage a builder to take this on.
+              The Build Reward is a shared pool of pledges — a public signal of how much demand is backing this Need.
+              Pledges aren&apos;t charged to your card; NeedSaaS doesn&apos;t collect reward-pool payments yet.
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
@@ -393,6 +400,7 @@ export function NeedDetailView() {
                 <Input
                   type="number"
                   min="1"
+                  max={PLEDGE_MAX}
                   value={contribCustom}
                   onChange={(e) => { setContribCustom(e.target.value); setContribAmount(null); }}
                   placeholder="Custom"
@@ -404,7 +412,7 @@ export function NeedDetailView() {
             <div className="mt-4 flex gap-2">
               <Button onClick={submitContribution} disabled={contribPending} className="bg-brand text-brand-foreground hover:bg-brand/90">
                 {contribPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <DollarSign className="mr-2 h-4 w-4" />}
-                Contribute
+                Pledge
               </Button>
               <Button variant="ghost" onClick={() => setShowContribute(false)}>Cancel</Button>
             </div>
@@ -412,9 +420,11 @@ export function NeedDetailView() {
             <div className="mt-4 flex gap-2.5 rounded-lg bg-blue-50 p-3 text-xs leading-relaxed text-blue-700">
               <Info className="h-4 w-4 shrink-0 mt-0.5" />
               <div>
-                <p className="font-medium">Builders own the software they create.</p>
+                <p className="font-medium">Pledges are a demand signal, not a payment.</p>
                 <p className="mt-1 text-blue-600/80">
-                  Your contribution helps encourage someone to build it. If the software launches, contributors receive access according to the builder&apos;s offering.
+                  NeedSaaS doesn&apos;t charge your card for a pledge — it shows builders how much interest is
+                  backing this Need. If a builder ships it, how rewards are actually collected and paid out is
+                  between the builder and pledgers, not handled by NeedSaaS today.
                 </p>
               </div>
             </div>
@@ -509,7 +519,7 @@ export function NeedDetailView() {
       {hasReward && contributions.length > 0 && (
         <div className="mt-8">
           <h3 className="mb-3 flex items-center gap-2 font-display text-sm font-semibold text-muted-foreground">
-            <Users className="h-4 w-4" /> Build Reward Contributors
+            <Users className="h-4 w-4" /> Pledged by
           </h3>
           <div className="space-y-2">
             {contributions.slice(0, 10).map((c) => (

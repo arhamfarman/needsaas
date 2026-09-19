@@ -93,6 +93,11 @@ function SignInForm() {
                 onSubmit={handleSubmit}
                 submitLabel="Sign in"
               />
+              <p className="mt-4 text-center text-sm">
+                <Link href="/reset-password" className="text-muted-foreground underline hover:text-foreground">
+                  Forgot your password?
+                </Link>
+              </p>
             </TabsContent>
 
             <TabsContent value="signup" className="mt-6">

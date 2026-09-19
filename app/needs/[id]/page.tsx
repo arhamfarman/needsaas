@@ -45,7 +45,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       url: canonical,
       siteName: 'NeedSaaS',
-      images: [{ url: `${SITE_URL}/Logo.png`, width: 1200, height: 630, alt: n.title }],
+      // Real dimensions of /Logo.png (2303x404) -- was declared as 1200x630,
+      // which doesn't match the actual file and can cause social platforms
+      // to crop/misrender it on share.
+      images: [{ url: `${SITE_URL}/Logo.png`, width: 2303, height: 404, alt: n.title }],
       type: 'article',
     },
     twitter: {

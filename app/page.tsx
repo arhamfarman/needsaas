@@ -49,7 +49,14 @@ export default async function Home() {
   let builders: (Profile & { product_count: number })[] = [];
   if (topOwnerIds.length > 0) {
     const { data: profiles } = await supabase.from('profiles').select('*').in('id', topOwnerIds);
-    builders = (profiles ?? []).map((p: any) => ({ ...p, product_count: ownerCounts.get(p.id) ?? 0 }));
+    // Exclude the "needsaas" editorial profile (owns the launch-content
+    // catalog, see supabase/migrations/20260902130000_seed_launch_content.sql)
+    // from "Featured Builders" -- it isn't a real builder who shipped
+    // software, so surfacing it here under "Creators shipping real software"
+    // would misrepresent it as one. Same exclusion applied on /builders.
+    builders = (profiles ?? [])
+      .filter((p: any) => p.username !== 'needsaas')
+      .map((p: any) => ({ ...p, product_count: ownerCounts.get(p.id) ?? 0 }));
   }
 
   return (

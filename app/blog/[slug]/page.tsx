@@ -67,7 +67,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       url: canonical,
       siteName: 'NeedSaaS',
-      images: [{ url: ogImage, width: 1200, height: 630, alt: post.title }],
+      // No fixed width/height -- ogImage is the post's own uploaded OG/cover
+      // image (arbitrary dimensions) or the /Logo.png fallback (2303x404,
+      // not 1200x630), so a hardcoded size would misdeclare whichever loads.
+      images: [{ url: ogImage, alt: post.title }],
       type: 'article',
       ...(post.published_at && { publishedTime: post.published_at }),
       ...(post.updated_at && { modifiedTime: post.updated_at }),

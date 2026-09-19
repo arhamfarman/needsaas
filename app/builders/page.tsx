@@ -41,6 +41,11 @@ export default function BuildersPage() {
         .in('id', ownerIds);
 
       const enriched = (profiles ?? [])
+        // The "needsaas" account is the editorial profile that owns the
+        // launch-content catalog (see supabase/migrations/20260902130000_seed_launch_content.sql)
+        // -- it's not a real builder who shipped software, so it's excluded
+        // here rather than shown as if it were "Creators shipping real software."
+        .filter((p: any) => p.username !== 'needsaas')
         .map((p: any) => ({ ...p, product_count: counts.get(p.id) ?? 0 }))
         .sort((a, b) => b.product_count - a.product_count);
 

@@ -23,26 +23,26 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://needsaas.com'),
 
   title: {
-    default: 'NeedSaaS — Find software that solves your problem',
+    default: 'NeedSaaS — Find the software you need. If it doesn\'t exist, ask for it.',
     template: '%s — NeedSaaS',
   },
   description:
-    'Discover software that solves your problem. If it doesn\'t exist, post your need for free. If enough people want it, a builder may decide to build it.',
+    'Discover software, AI agents, and automated workflows that solve your problem. If nothing fits, post your need for free. If enough people want it, a builder may decide to build it.',
   icons: {
     icon: '/Icon_Logo.png',
     apple: '/Icon_Logo.png',
   },
   openGraph: {
-    title: 'NeedSaaS — Find software that solves your problem',
+    title: 'NeedSaaS — Find the software you need. If it doesn\'t exist, ask for it.',
     description:
-      'Discover software that solves your problem. If it doesn\'t exist, post your need for free.',
+      'Discover software, AI agents, and automated workflows that solve your problem. If nothing fits, post your need for free.',
     images: ['/Logo.png'],
     type: 'website',
   },
   twitter: {
     card: 'summary',
-    title: 'NeedSaaS — Find software that solves your problem',
-    description: 'Discover software, or inspire someone to build it.',
+    title: 'NeedSaaS — Find the software you need. If it doesn\'t exist, ask for it.',
+    description: 'Discover software, AI agents, and automations -- or inspire someone to build it.',
     images: ['/Logo.png'],
   },
 };

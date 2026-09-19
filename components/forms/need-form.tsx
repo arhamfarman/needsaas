@@ -16,6 +16,11 @@ import { cn } from '@/lib/utils';
 
 const PRESET_AMOUNTS = [10, 25, 50, 100, 250];
 
+// Pledges aren't backed by a real payment today (see the `contributions`
+// insert below) -- capping the amount keeps a single pledge from displaying
+// as an implausible number (e.g. "$500,000 reward") on a public Need page.
+const PLEDGE_MAX = 1000;
+
 const TIMELINE_OPTIONS = [
   { value: '30_days', label: '30 Days' },
   { value: '60_days', label: '60 Days' },
@@ -52,6 +57,10 @@ export function NeedForm({ categories, onDone }: { categories: Category[]; onDon
         if (isNaN(parsed) || parsed < 1) { toast.error('Custom amount must be at least $1'); return; }
         contributionAmount = parsed;
       }
+      if (contributionAmount && contributionAmount > PLEDGE_MAX) {
+        toast.error(`Pledges are capped at $${PLEDGE_MAX} for now`);
+        return;
+      }
     }
 
     setLoading(true);
@@ -76,9 +85,9 @@ export function NeedForm({ categories, onDone }: { categories: Category[]; onDon
       });
 
       if (contribError) {
-        toast.error('Need posted, but contribution failed: ' + contribError.message);
+        toast.error('Need posted, but the pledge failed: ' + contribError.message);
       } else {
-        toast.success('Need posted with Build Reward!');
+        toast.success('Need posted with a Build Reward pledge!');
       }
     } else {
       toast.success('Need posted! The community can now vote on it.');
@@ -94,11 +103,11 @@ export function NeedForm({ categories, onDone }: { categories: Category[]; onDon
     <form onSubmit={submit} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="need-title">What do you need?</Label>
-        <Input id="need-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. A simple tool to schedule social posts across platforms" required />
+        <Input id="need-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. An AI agent to qualify leads, an automated weekly report, or a tool to schedule social posts" required />
       </div>
       <div className="space-y-2">
         <Label htmlFor="need-desc">Describe the problem</Label>
-        <Textarea id="need-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What are you trying to do? What have you tried? What's missing in existing tools?" rows={5} required />
+        <Textarea id="need-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What are you trying to do? What have you tried? Could this be software, an AI agent, or an automated workflow?" rows={5} required />
       </div>
       <div className="space-y-2">
         <Label>Category</Label>
@@ -120,7 +129,7 @@ export function NeedForm({ categories, onDone }: { categories: Category[]; onDon
         >
           <span className="flex items-center gap-2 text-sm font-medium text-foreground">
             <DollarSign className="h-4 w-4 text-emerald-500" />
-            Add a Build Reward (optional)
+            Pledge a Build Reward (optional)
           </span>
           <span className={cn(
             'relative h-5 w-9 rounded-full transition',
@@ -135,9 +144,9 @@ export function NeedForm({ categories, onDone }: { categories: Category[]; onDon
 
         {enableReward && (
           <div className="mt-4 space-y-4">
-            {/* Contribution amount */}
+            {/* Pledge amount */}
             <div className="space-y-2">
-              <Label className="text-xs">Contribution Amount</Label>
+              <Label className="text-xs">Pledge Amount</Label>
               <div className="flex flex-wrap gap-2">
                 {PRESET_AMOUNTS.map((a) => (
                   <button
@@ -159,6 +168,7 @@ export function NeedForm({ categories, onDone }: { categories: Category[]; onDon
                   <Input
                     type="number"
                     min="1"
+                    max={PLEDGE_MAX}
                     value={customAmount}
                     onChange={(e) => { setCustomAmount(e.target.value); setAmount(null); }}
                     placeholder="Custom"
@@ -205,10 +215,11 @@ export function NeedForm({ categories, onDone }: { categories: Category[]; onDon
             <div className="flex gap-2.5 rounded-lg bg-blue-50 p-3 text-xs leading-relaxed text-blue-700">
               <Info className="h-4 w-4 shrink-0 mt-0.5" />
               <div>
-                <p className="font-medium">Builders own the software they create.</p>
+                <p className="font-medium">Pledges are a demand signal, not a payment.</p>
                 <p className="mt-1 text-blue-600/80">
-                  Your contribution simply helps encourage someone to build it.
-                  If the software launches, contributors receive access according to the builder&apos;s offering.
+                  NeedSaaS doesn&apos;t charge your card for a pledge — it shows builders how much interest is
+                  backing this Need. Builders own the software they create; if it launches, how rewards are
+                  actually collected and paid out is between the builder and pledgers, not handled by NeedSaaS today.
                 </p>
               </div>
             </div>

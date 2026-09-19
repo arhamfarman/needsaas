@@ -49,7 +49,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       url: canonical,
       siteName: 'NeedSaaS',
-      images: [{ url: ogImage, width: 1200, height: 630, alt: name }],
+      // No fixed width/height -- ogImage is either the builder's own avatar
+      // (arbitrary dimensions) or the /Logo.png fallback (2303x404, not
+      // 1200x630), so a hardcoded size would misdeclare whichever loads.
+      images: [{ url: ogImage, alt: name }],
       type: 'profile',
     },
     twitter: {

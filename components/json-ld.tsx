@@ -1,5 +1,9 @@
 export function JsonLd({ data }: { data: Record<string, any> | Record<string, any>[] }) {
-  const json = JSON.stringify(data);
+  // Need/product titles and descriptions are user-generated and flow into this
+  // JSON straight from the DB (see needJsonLd/softwareJsonLd below). Escaping
+  // `<` prevents a value containing a literal `</script>` from breaking out of
+  // this tag and injecting arbitrary markup/script into the page.
+  const json = JSON.stringify(data).replace(/</g, '\\u003c');
   return (
     <script
       type="application/ld+json"

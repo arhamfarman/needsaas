@@ -75,6 +75,22 @@ Deno.serve(async (req) => {
       }
     }
 
+    // The client sends `amount` for every inline-priced flow (product listing
+    // fee, Pro Builder subscription), but a client-supplied amount is not
+    // trustworthy on its own -- anyone can call this function directly with a
+    // smaller `amount` than the UI ever sends and pay less than intended. The
+    // two flows that use `product_metadata` to tag a known price are pinned
+    // here to their real server-side value instead of trusting the request.
+    let resolvedAmount = amount;
+    if (isInline && product_metadata?.product_id && resolvedMode === 'payment') {
+      resolvedAmount = 1000; // $10.00 product listing fee -- must match LISTING_FEE_CENTS in pay-product-button.tsx / product-form.tsx
+    } else if (isInline && product_metadata?.type === 'pro_builder') {
+      const plan = product_metadata?.plan;
+      if (plan === 'monthly') resolvedAmount = 1500; // $15.00/mo
+      else if (plan === 'yearly') resolvedAmount = 9900; // $99.00/yr
+      else return corsResponse({ error: 'Unrecognized Pro Builder plan' }, 400);
+    }
+
     // Stripe requires a `recurring` config on price_data whenever a Checkout Session
     // is created in subscription mode with inline pricing (as opposed to a stored price_id).
     let resolvedInterval: 'day' | 'week' | 'month' | 'year' | undefined;
@@ -210,7 +226,7 @@ Deno.serve(async (req) => {
             quantity: 1,
             price_data: {
               currency: 'usd',
-              unit_amount: amount,
+              unit_amount: resolvedAmount,
               product_data: {
                 name: product_name,
                 metadata: product_metadata ?? {},
