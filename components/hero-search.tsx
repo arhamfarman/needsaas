@@ -162,7 +162,7 @@ export function HeroSearch() {
           onFocus={() => setFocused(true)}
           onKeyDown={onKeydown}
           className="h-16 w-full rounded-2xl bg-transparent pl-14 pr-28 text-base text-foreground placeholder:text-muted-foreground/60 focus:outline-none sm:text-lg"
-          placeholder={query ? "I'm looking for software to..." : `I'm looking for software to ${PLACEHOLDER_EXAMPLES[placeholderIdx]}...`}
+          placeholder={query ? "I'm looking for a way to..." : `I'm looking for a way to ${PLACEHOLDER_EXAMPLES[placeholderIdx]}...`}
           role="combobox"
           aria-expanded={showDropdown}
           aria-controls="search-suggestions"

@@ -27,7 +27,7 @@ const fadeUp = {
   }),
 };
 
-const HERO_MESSAGES = ['Find software for your needs.', 'Or inspire someone to build it.'];
+const HERO_MESSAGES = ['Find software, an AI agent, or an automation.', 'Or inspire someone to build it.'];
 
 export function LandingHero() {
   // Was a character-by-character typewriter that typed each message in,
@@ -69,7 +69,7 @@ export function LandingHero() {
           className="mx-auto mb-8 flex w-fit items-center gap-2 rounded-full border border-border/50 bg-card/60 px-3.5 py-1.5 text-xs font-medium text-muted-foreground shadow-soft backdrop-blur"
         >
           <Sparkles className="h-3.5 w-3.5 text-brand" />
-          Where software demand meets software builders
+          Where demand for software, AI agents & automation meets builders
         </motion.div>
 
         <div className="min-h-[4rem] text-center sm:min-h-[6rem] lg:min-h-[7rem]">
@@ -94,7 +94,7 @@ export function LandingHero() {
           animate="show"
           className="mx-auto mt-6 max-w-2xl text-balance text-center text-base leading-relaxed text-muted-foreground sm:text-lg"
         >
-          Find software that already exists. If it doesn&apos;t, post your need and help make it happen. Builders create products for everyone — your contribution helps encourage them.
+          Find software that already exists. If it doesn&apos;t, post your need — for software, an AI agent, or an automated workflow — and help make it happen. Builders decide the best way to solve it and build it for everyone.
         </motion.p>
 
         {/* Hero Search */}
@@ -118,7 +118,7 @@ export function LandingHero() {
         >
           <Button asChild size="lg" className="group h-11 rounded-xl bg-brand px-6 text-sm text-brand-foreground shadow-soft hover:bg-brand/90">
             <Link href="/dashboard?tab=needs">
-              I&apos;m looking for software
+              I need a solution
               <ArrowRight className="ml-2 h-4 w-4 transition group-hover:translate-x-0.5" />
             </Link>
           </Button>
@@ -419,7 +419,7 @@ export function LandingContent({
           <div className="absolute inset-0 -z-10 mesh-gradient-soft" />
           <div className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[300px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand/5 blur-[100px]" />
           <h2 className="mx-auto max-w-2xl font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-            Find the software you need. Or inspire someone to build it.
+            Find software, an AI agent, or an automation. Or inspire someone to build it.
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
             Join the community where demand meets builders.

@@ -17,12 +17,12 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://needsaas.com';
 export const revalidate = 0;
 
 export const metadata: Metadata = {
-  title: 'Starter Packs — Curated software collections for your industry',
-  description: 'Discover curated collections of the best software for your industry. Construction, restaurants, clinics, accounting, and more.',
+  title: 'Starter Packs — Curated software, AI agents & automation by industry',
+  description: 'Discover curated software, AI agents, and automation ideas for your industry. Construction, restaurants, real estate, accounting, and more.',
   alternates: { canonical: `${SITE_URL}/starter-packs` },
   openGraph: {
     title: 'Starter Packs — NeedSaaS',
-    description: 'Curated software collections for every industry.',
+    description: 'Curated software, AI agents, and automation ideas for every industry.',
     url: `${SITE_URL}/starter-packs`,
     siteName: 'NeedSaaS',
     images: ['/Logo.png'],
@@ -60,7 +60,7 @@ export default async function StarterPacksPage() {
           Starter Packs
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-          Hand-picked software collections for specific industries. Find the right tools for your business, all in one place.
+          Hand-picked software, AI agents, and automation ideas for specific industries -- and what to ask a builder for if nothing existing fits.
         </p>
       </div>
 

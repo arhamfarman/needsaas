@@ -7,7 +7,7 @@ import { ProductImage } from '@/components/product-image';
 import { VerifiedBadge } from '@/components/verified-badge';
 import {
   Package, ArrowRight, Star, FileText, Lightbulb,
-  Users, Award, HelpCircle, ExternalLink, AlertCircle,
+  Users, Award, HelpCircle, ExternalLink, AlertCircle, Bot, Workflow, Sparkles,
 } from 'lucide-react';
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
@@ -107,14 +107,22 @@ export default async function StarterPackDetailPage({ params }: Props) {
   if (packError) return <ErrorState />;
   if (!pack) notFound();
 
-  // Recommended software, including the Phase 2 curation labels.
+  // Recommended software/AI agents/automations, including the Phase 2 curation labels.
   const { data: packProducts, error: productsError } = await supabase
     .from('starter_pack_products')
-    .select(`id, sort_order, featured, blurb, role_label, best_for_label, pricing_label,
+    .select(`id, sort_order, section, featured, blurb, role_label, best_for_label, pricing_label,
       product:products(id, name, tagline, logo_url, pricing, price_from, url, avg_rating, review_count,
         profile:profiles(id, username, verified)
       )
     `)
+    .eq('starter_pack_id', pack.id)
+    .order('sort_order');
+
+  // Illustrative example Need prompts -- editorial suggestions, never real
+  // posted Needs (see 20260919130000_starter_pack_sections_and_ideas.sql).
+  const { data: packIdeas, error: ideasError } = await supabase
+    .from('starter_pack_ideas')
+    .select('id, prompt, note, sort_order')
     .eq('starter_pack_id', pack.id)
     .order('sort_order');
 
@@ -138,6 +146,12 @@ export default async function StarterPackDetailPage({ params }: Props) {
   (packProducts || []).forEach((pp: any) => {
     if (pp.product?.profile) builderIds.add(pp.product.profile.username);
   });
+
+  // Group recommendations into Software / AI Agents / Automations --
+  // `section` defaults to 'software' for any row that predates this column.
+  const softwareItems = (packProducts || []).filter((pp: any) => (pp.section ?? 'software') === 'software');
+  const aiAgentItems = (packProducts || []).filter((pp: any) => pp.section === 'ai_agent');
+  const automationItems = (packProducts || []).filter((pp: any) => pp.section === 'automation');
 
   // Related blog posts
   const { data: blogPosts, error: blogPostsError } = await supabase
@@ -243,18 +257,86 @@ export default async function StarterPackDetailPage({ params }: Props) {
           </div>
           {productsError ? (
             <SectionError message="Couldn't load recommended software right now." />
-          ) : (!packProducts || packProducts.length === 0) ? (
+          ) : softwareItems.length === 0 ? (
             <p className="rounded-xl border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">
               Software recommendations are being curated. Check back soon.
             </p>
           ) : (
             <div className="space-y-4">
-              {packProducts.map((pp: any) => (
+              {softwareItems.map((pp: any) => (
                 <ProductRow key={pp.id} pp={pp} />
               ))}
             </div>
           )}
         </section>
+
+        {/* AI Agents */}
+        {!productsError && aiAgentItems.length > 0 && (
+          <section className="mb-12">
+            <div className="mb-6 flex items-center gap-2">
+              <Bot className="h-5 w-5 text-brand" />
+              <h2 className="font-display text-2xl font-semibold text-foreground">AI Agents Worth Exploring</h2>
+            </div>
+            <p className="mb-4 -mt-2 text-sm text-muted-foreground">
+              General-purpose AI tools that can be applied to this work today -- not a substitute for a
+              purpose-built agent, which is exactly what the ideas below are for.
+            </p>
+            <div className="space-y-4">
+              {aiAgentItems.map((pp: any) => (
+                <ProductRow key={pp.id} pp={pp} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Automations */}
+        {!productsError && automationItems.length > 0 && (
+          <section className="mb-12">
+            <div className="mb-6 flex items-center gap-2">
+              <Workflow className="h-5 w-5 text-brand" />
+              <h2 className="font-display text-2xl font-semibold text-foreground">Automations & Workflows</h2>
+            </div>
+            <div className="space-y-4">
+              {automationItems.map((pp: any) => (
+                <ProductRow key={pp.id} pp={pp} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Ideas you could post -- illustrative example prompts, never real
+            posted Needs (see the migration's content policy). */}
+        {(ideasError || (packIdeas && packIdeas.length > 0)) && (
+          <section className="mb-12">
+            <div className="mb-6 flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-brand" />
+              <h2 className="font-display text-2xl font-semibold text-foreground">Ideas You Could Post</h2>
+            </div>
+            {ideasError ? (
+              <SectionError message="Couldn't load ideas right now." />
+            ) : (
+              <div className="space-y-3">
+                {(packIdeas ?? []).map((idea: any) => (
+                  <div
+                    key={idea.id}
+                    className="flex flex-col gap-3 rounded-xl border border-border/60 bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <p className="text-sm text-foreground">&ldquo;{idea.prompt}&rdquo;</p>
+                      {idea.note && <p className="mt-1 text-xs text-muted-foreground">{idea.note}</p>}
+                    </div>
+                    <Link
+                      href={`/dashboard?tab=needs&title=${encodeURIComponent(idea.prompt)}#post-a-need`}
+                      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border/60 px-3 py-1.5 text-xs font-medium text-foreground transition hover:border-brand/40 hover:text-brand"
+                    >
+                      Post this Need <ArrowRight className="h-3.5 w-3.5" />
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Featured Builders */}
         {builderIds.size > 0 && (
@@ -360,10 +442,10 @@ export default async function StarterPackDetailPage({ params }: Props) {
         {/* CTA */}
         <div className="rounded-2xl border border-brand/20 bg-gradient-to-b from-brand/5 to-transparent p-8 text-center">
           <h2 className="font-display text-xl font-semibold text-foreground">
-            Can&apos;t find the right software?
+            Don&apos;t see the right fit?
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Post your need and let builders know what you&apos;re looking for.
+            Post what you need -- software, an AI agent, or an automated workflow -- and let builders decide how to solve it.
           </p>
           <Link
             href="/dashboard?tab=needs"
