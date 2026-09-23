@@ -19,31 +19,41 @@ const jetbrainsMono = JetBrains_Mono({
   display: 'swap',
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://needsaas.com';
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://needsaas.com'),
+  metadataBase: new URL(SITE_URL),
 
   title: {
-    default: 'NeedSaaS — Find the software you need. If it doesn\'t exist, ask for it.',
+    default: 'NeedSaaS — Find the software you need',
     template: '%s — NeedSaaS',
   },
-  description:
-    'Discover software, AI agents, and automated workflows that solve your problem. If nothing fits, post your need for free. If enough people want it, a builder may decide to build it.',
+  description: 'Discover software, AI agents, and automations — or inspire someone to build it.',
+  alternates: { canonical: '/' },
   icons: {
     icon: '/Icon_Logo.png',
     apple: '/Icon_Logo.png',
   },
   openGraph: {
-    title: 'NeedSaaS — Find the software you need. If it doesn\'t exist, ask for it.',
-    description:
-      'Discover software, AI agents, and automated workflows that solve your problem. If nothing fits, post your need for free.',
-    images: ['/Logo.png'],
     type: 'website',
+    url: SITE_URL,
+    siteName: 'NeedSaaS',
+    title: 'NeedSaaS — Find the software you need',
+    description: 'Discover software, AI agents, and automations — or inspire someone to build it.',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 628,
+        alt: 'NeedSaaS — Find the software you need',
+      },
+    ],
   },
   twitter: {
-    card: 'summary',
-    title: 'NeedSaaS — Find the software you need. If it doesn\'t exist, ask for it.',
-    description: 'Discover software, AI agents, and automations -- or inspire someone to build it.',
-    images: ['/Logo.png'],
+    card: 'summary_large_image',
+    title: 'NeedSaaS — Find the software you need',
+    description: 'Discover software, AI agents, and automations — or inspire someone to build it.',
+    images: ['/og-image.png'],
   },
 };
 
