@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import type { Product, Need, Category, Profile, Review } from '@/lib/types';
 import { HeroSearch } from '@/components/hero-search';
@@ -129,6 +130,30 @@ export function LandingHero() {
             </Link>
           </Button>
         </motion.div>
+
+        {/* Link banners -- same two destinations as the buttons above, as clickable images */}
+        <div className="mx-auto mt-6 flex max-w-2xl flex-col items-center justify-center gap-3 sm:flex-row">
+          <Link href="/submit-need" className="block w-full overflow-hidden rounded-xl shadow-soft transition hover:opacity-90 sm:w-1/2">
+            <Image
+              src="/submit-need-link-banner.png"
+              alt="Post a Need"
+              width={1734}
+              height={907}
+              className="h-auto w-full"
+              sizes="(min-width: 640px) 50vw, 100vw"
+            />
+          </Link>
+          <Link href="/submit-product" className="block w-full overflow-hidden rounded-xl shadow-soft transition hover:opacity-90 sm:w-1/2">
+            <Image
+              src="/submit-product-link-banner.png"
+              alt="List Your Product"
+              width={1734}
+              height={907}
+              className="h-auto w-full"
+              sizes="(min-width: 640px) 50vw, 100vw"
+            />
+          </Link>
+        </div>
 
         <motion.div
           initial={{ opacity: 0 }}
