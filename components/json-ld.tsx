@@ -28,6 +28,8 @@ export function softwareJsonLd(product: {
   owner_username?: string | null;
   owner_verified?: boolean;
   canonicalUrl: string;
+  key_features?: string[] | null;
+  target_audience?: string | null;
 }) {
   const offers = product.pricing === 'Free' || product.pricing === 'Open Source'
     ? { '@type': 'Offer', price: '0', priceCurrency: 'USD' }
@@ -45,6 +47,8 @@ export function softwareJsonLd(product: {
     ...(product.logo_url && { image: product.logo_url }),
     ...(product.repo_url && { codeRepository: product.repo_url }),
     ...(product.doc_url && { documentationUrl: product.doc_url }),
+    ...(product.key_features && product.key_features.length > 0 && { featureList: product.key_features.join(', ') }),
+    ...(product.target_audience && { audience: { '@type': 'Audience', audienceType: product.target_audience } }),
     offers,
     ...(product.review_count > 0 && {
       aggregateRating: {
@@ -71,26 +75,40 @@ export function needJsonLd(need: {
   need_score: number;
   status: string;
   canonicalUrl: string;
+  who_for?: string | null;
+  industry?: string | null;
+  solution_type?: string | null;
+  desired_outcome?: string | null;
 }) {
+  const additionalProperty: Record<string, any>[] = [];
+  if (need.industry) additionalProperty.push({ '@type': 'PropertyValue', name: 'Industry', value: need.industry });
+  if (need.solution_type) additionalProperty.push({ '@type': 'PropertyValue', name: 'Possible solution type', value: need.solution_type });
+  if (need.who_for) additionalProperty.push({ '@type': 'PropertyValue', name: 'Who this is for', value: need.who_for });
+  if (need.reward_amount > 0) {
+    // Deliberately NOT an `Offer` -- pledges are a non-binding demand
+    // signal, not money anyone can pay to receive, so a schema.org Offer
+    // (which implies a real commercial transaction) would be misleading to
+    // both search engines and AI systems reading this page.
+    additionalProperty.push({
+      '@type': 'PropertyValue',
+      name: 'Pledged (non-binding, not currently charged)',
+      value: `$${need.reward_amount}`,
+    });
+  }
+
   return {
     '@context': 'https://schema.org',
     '@type': 'DiscussionForumPosting',
     headline: need.title,
     text: need.description,
     ...(need.category_name && { about: need.category_name }),
+    ...(need.desired_outcome && { abstract: need.desired_outcome }),
     interactionStatistic: {
       '@type': 'InteractionCounter',
       interactionType: 'https://schema.org/LikeAction',
       userInteractionCount: need.vote_count,
     },
-    ...(need.reward_amount > 0 && {
-      offers: {
-        '@type': 'Offer',
-        price: String(need.reward_amount),
-        priceCurrency: 'USD',
-        description: 'Reward pool available for building this software',
-      },
-    }),
+    ...(additionalProperty.length > 0 && { additionalProperty }),
     status: need.status,
     url: need.canonicalUrl,
   };

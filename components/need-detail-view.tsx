@@ -2,23 +2,30 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/auth-provider';
-import type { Need, Product, NeedProductLink, Contribution, BuilderInterest, NeedStatus } from '@/lib/types';
+import { trackPageView } from '@/lib/analytics';
+import type {
+  Need, Product, NeedProductLink, Contribution, BuilderInterest, NeedStatus, Category,
+} from '@/lib/types';
+import { WHO_FOR_LABELS, SOLUTION_TYPE_LABELS, PAIN_LEVEL_LABELS } from '@/lib/types';
 import { ProductRowMini } from '@/components/product-card';
+import { ShareButtons } from '@/components/share-buttons';
+import { NeedForm } from '@/components/forms/need-form';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import {
-  ArrowUp, ArrowLeft, Share2, Lightbulb, Package, ChevronUp,
+  ArrowUp, ArrowLeft, Lightbulb, Package, ChevronUp,
   DollarSign, Users, Hammer, Calendar, Check, Loader2, Info,
-  Sparkles, TrendingUp,
+  Sparkles, TrendingUp, PencilLine, Target, ListChecks, Workflow,
 } from 'lucide-react';
 import { formatDate, formatNumber } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -57,6 +64,7 @@ function getDemandLevel(votes: number, reward: number): { label: string; classNa
 export function NeedDetailView() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, profile } = useAuth();
   const [need, setNeed] = useState<Need | null>(null);
   const [links, setLinks] = useState<NeedProductLink[]>([]);
@@ -65,6 +73,9 @@ export function NeedDetailView() {
   const [hasVoted, setHasVoted] = useState(false);
   const [votePending, setVotePending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [editOpen, setEditOpen] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [justPublished, setJustPublished] = useState(false);
 
   // Contribution UI state
   const [showContribute, setShowContribute] = useState(false);
@@ -113,6 +124,21 @@ export function NeedDetailView() {
   }, [id, user]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    supabase.from('categories').select('*').order('name').then(({ data }) => setCategories((data as Category[]) ?? []));
+  }, []);
+
+  useEffect(() => {
+    if (id) trackPageView('need', id);
+  }, [id]);
+
+  useEffect(() => {
+    if (searchParams.get('share') === '1') {
+      setJustPublished(true);
+      router.replace(`/needs/${id}`);
+    }
+  }, [searchParams, router, id]);
 
   async function toggleVote() {
     if (!user) { router.push('/signin'); return; }
@@ -240,6 +266,21 @@ export function NeedDetailView() {
         <ArrowLeft className="h-4 w-4" /> Back to explore
       </Link>
 
+      {justPublished && (
+        <div className="mb-6 flex flex-col items-start justify-between gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 sm:flex-row sm:items-center">
+          <div>
+            <p className="text-sm font-medium text-foreground">🎉 Your Need is live!</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">Know someone with the same problem? Share it and invite them to support it.</p>
+          </div>
+          <ShareButtons
+            url={typeof window !== 'undefined' ? window.location.href : `https://needsaas.com/needs/${need.id}`}
+            text={`I just posted a need on NeedSaaS:\n\n${need.title}\n\nIf you've run into the same problem, check it out and support it:`}
+            label="Share your Need"
+            variant="default"
+          />
+        </div>
+      )}
+
       {/* Status Timeline */}
       <div className="mb-8 rounded-2xl border border-border/60 bg-white p-5 shadow-card sm:p-6">
         <div className="flex items-center justify-between gap-1">
@@ -311,6 +352,45 @@ export function NeedDetailView() {
           </div>
         )}
 
+        {/* Structured context -- only shown when present, so pre-existing Needs render unchanged */}
+        {(need.who_for || need.industry || need.solution_type) && (
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {need.who_for && (
+              <Badge variant="outline" className="border-border/60 text-muted-foreground">For {WHO_FOR_LABELS[need.who_for].toLowerCase()}</Badge>
+            )}
+            {need.industry && (
+              <Badge variant="outline" className="border-border/60 text-muted-foreground">{need.industry}</Badge>
+            )}
+            {need.solution_type && (
+              <Badge variant="outline" className="border-brand/20 bg-brand/5 text-brand">{SOLUTION_TYPE_LABELS[need.solution_type]}</Badge>
+            )}
+          </div>
+        )}
+
+        {need.current_solution && (
+          <section className="mt-8">
+            <h2 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <Target className="h-3.5 w-3.5" /> Current solution
+            </h2>
+            <p className="text-base leading-relaxed text-foreground/90">{need.current_solution}</p>
+          </section>
+        )}
+
+        {need.desired_outcome && (
+          <section className="mt-8">
+            <h2 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <Workflow className="h-3.5 w-3.5" /> Desired outcome
+            </h2>
+            <p className="whitespace-pre-line text-base leading-relaxed text-foreground/90">{need.desired_outcome}</p>
+          </section>
+        )}
+
+        {need.pain_level && (
+          <p className="mt-4 text-sm text-muted-foreground">
+            <ListChecks className="mr-1.5 inline h-3.5 w-3.5" /> {PAIN_LEVEL_LABELS[need.pain_level]}
+          </p>
+        )}
+
         {/* Meta */}
         <div className="mt-6 flex items-center gap-3">
           <Link href={`/builders/${need.owner_id}`} className="flex items-center gap-2">
@@ -351,22 +431,24 @@ export function NeedDetailView() {
           className={cn('h-11 rounded-xl px-5', hasVoted ? 'bg-brand text-brand-foreground hover:bg-brand/90' : '')}
         >
           <ChevronUp className="mr-1.5 h-4 w-4" />
-          {hasVoted ? 'Voted' : 'Upvote'}
+          {hasVoted ? 'You have this problem too' : 'I have this problem too'}
           <span className="ml-2 rounded-md bg-black/20 px-1.5 py-0.5 text-sm font-semibold">{need.vote_count}</span>
         </Button>
-        <Button
-          variant="outline"
-          className="h-11 rounded-xl px-4"
-          onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success('Link copied'); }}
-        >
-          <Share2 className="mr-1.5 h-4 w-4" /> Share
-        </Button>
+        {isOwner ? (
+          <Button variant="outline" className="h-11 rounded-xl px-4" onClick={() => setEditOpen(true)}>
+            <PencilLine className="mr-1.5 h-4 w-4" /> Edit
+          </Button>
+        ) : null}
+        <ShareButtons
+          url={typeof window !== 'undefined' ? window.location.href : `https://needsaas.com/needs/${need.id}`}
+          text={`I just posted a need on NeedSaaS:\n\n${need.title}\n\nIf you've run into the same problem, check it out and support it:`}
+        />
         <Button
           variant="outline"
           className={cn('h-11 rounded-xl px-4', hasReward && 'border-emerald-500/30 text-emerald-600 hover:bg-emerald-50')}
           onClick={() => setShowContribute((v) => !v)}
         >
-          <DollarSign className="mr-1.5 h-4 w-4" /> Pledge to Reward
+          <DollarSign className="mr-1.5 h-4 w-4" /> Support this Need
         </Button>
       </div>
 
@@ -592,6 +674,21 @@ export function NeedDetailView() {
           </div>
         )}
       </section>
+
+      {isOwner && (
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit your Need</DialogTitle>
+            </DialogHeader>
+            <NeedForm
+              categories={categories}
+              need={need}
+              onDone={() => { setEditOpen(false); load(); }}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

@@ -326,7 +326,7 @@ export default async function StarterPackDetailPage({ params }: Props) {
                       {idea.note && <p className="mt-1 text-xs text-muted-foreground">{idea.note}</p>}
                     </div>
                     <Link
-                      href={`/dashboard?tab=needs&title=${encodeURIComponent(idea.prompt)}#post-a-need`}
+                      href={`/submit-need?title=${encodeURIComponent(idea.prompt)}`}
                       className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border/60 px-3 py-1.5 text-xs font-medium text-foreground transition hover:border-brand/40 hover:text-brand"
                     >
                       Post this Need <ArrowRight className="h-3.5 w-3.5" />
@@ -448,7 +448,7 @@ export default async function StarterPackDetailPage({ params }: Props) {
             Post what you need -- software, an AI agent, or an automated workflow -- and let builders decide how to solve it.
           </p>
           <Link
-            href="/dashboard?tab=needs"
+            href="/submit-need"
             className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-medium text-brand-foreground shadow-soft transition hover:bg-brand/90"
           >
             Post a Need <ArrowRight className="h-4 w-4" />

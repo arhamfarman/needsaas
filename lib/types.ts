@@ -44,6 +44,40 @@ export type NeedStatus = 'open' | 'committed' | 'building' | 'fulfilled' | 'clos
 export type Timeline = '30_days' | '60_days' | '90_days' | 'flexible' | null;
 export type NeedScoreTrend = 'rising' | 'falling' | 'stable';
 
+export type WhoFor = 'myself' | 'my_business' | 'my_team' | 'my_customers' | 'other';
+export type SolutionType = 'saas' | 'ai_agent' | 'ai_tool' | 'automation' | 'internal_tool' | 'other';
+export type PainLevel = 'nice_to_have' | 'significant_time_savings' | 'important' | 'critical';
+
+export const WHO_FOR_LABELS: Record<WhoFor, string> = {
+  myself: 'Myself',
+  my_business: 'My business',
+  my_team: 'My team',
+  my_customers: 'My customers',
+  other: 'Other',
+};
+
+export const SOLUTION_TYPE_LABELS: Record<SolutionType, string> = {
+  saas: 'SaaS / Software',
+  ai_agent: 'AI Agent',
+  ai_tool: 'AI Tool',
+  automation: 'Automation / Workflow',
+  internal_tool: 'Internal Tool',
+  other: 'Other',
+};
+
+export const PAIN_LEVEL_LABELS: Record<PainLevel, string> = {
+  nice_to_have: 'Nice to have',
+  significant_time_savings: 'Would save significant time',
+  important: 'Important business problem',
+  critical: 'Critical problem',
+};
+
+export const NEED_INDUSTRIES = [
+  'Small Business', 'Sales', 'Marketing', 'Finance', 'HR', 'Real Estate',
+  'Construction', 'Cleaning', 'Restaurants', 'E-commerce', 'Healthcare',
+  'Education', 'Other',
+];
+
 export type Need = {
   id: string;
   title: string;
@@ -65,6 +99,12 @@ export type Need = {
   need_score_updated_at: string | null;
   pinned: boolean;
   featured_need: boolean;
+  who_for: WhoFor | null;
+  industry: string | null;
+  solution_type: SolutionType | null;
+  current_solution: string | null;
+  pain_level: PainLevel | null;
+  desired_outcome: string | null;
   created_at: string;
   updated_at: string;
   category?: Category | null;
@@ -72,6 +112,8 @@ export type Need = {
   has_voted?: boolean;
   interested_builders?: number;
 };
+
+export type ProductType = 'saas' | 'ai_agent' | 'ai_tool' | 'automation' | 'dev_tool' | 'api' | 'other';
 
 export type Product = {
   id: string;
@@ -94,11 +136,29 @@ export type Product = {
   owner_id: string;
   review_count: number;
   avg_rating: number;
+  product_type: ProductType;
+  problem_solved: string | null;
+  target_audience: string | null;
+  key_features: string[];
+  how_it_works: string | null;
+  demo_url: string | null;
+  video_url: string | null;
+  founder_name: string | null;
   created_at: string;
   updated_at: string;
   category?: Category | null;
   profile?: Profile | null;
   tags?: Tag[];
+};
+
+export const PRODUCT_TYPE_LABELS: Record<ProductType, string> = {
+  saas: 'SaaS',
+  ai_agent: 'AI Agent',
+  ai_tool: 'AI Tool',
+  automation: 'Automation / Workflow',
+  dev_tool: 'Developer Tool',
+  api: 'API',
+  other: 'Other',
 };
 
 export type Contribution = {

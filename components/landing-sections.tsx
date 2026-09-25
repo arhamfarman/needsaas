@@ -117,13 +117,13 @@ export function LandingHero() {
           className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row"
         >
           <Button asChild size="lg" className="group h-11 rounded-xl bg-brand px-6 text-sm text-brand-foreground shadow-soft hover:bg-brand/90">
-            <Link href="/dashboard?tab=needs">
+            <Link href="/submit-need">
               I need a solution
               <ArrowRight className="ml-2 h-4 w-4 transition group-hover:translate-x-0.5" />
             </Link>
           </Button>
           <Button asChild size="lg" variant="outline" className="group h-11 rounded-xl px-6 text-sm shadow-soft">
-            <Link href="/dashboard?tab=products">
+            <Link href="/submit-product">
               I&apos;m a builder
               <ArrowRight className="ml-2 h-4 w-4 transition group-hover:translate-x-0.5" />
             </Link>

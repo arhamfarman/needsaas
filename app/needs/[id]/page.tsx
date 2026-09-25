@@ -11,7 +11,7 @@ type Props = { params: { id: string } };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { data: need } = await supabase
     .from('needs')
-    .select(`title, description, status, vote_count, reward_amount, need_score, category:categories(name)`)
+    .select(`title, description, status, vote_count, reward_amount, need_score, who_for, industry, solution_type, category:categories(name)`)
     .eq('id', params.id)
     .maybeSingle();
 
@@ -57,7 +57,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
     },
     other: {
-      'ai:context': `${n.title} is a software need with ${n.vote_count} votes and a $${n.reward_amount} reward pool. NeedScore: ${n.need_score}. Status: ${n.status}.`,
+      'ai:context': [
+        `${n.title} is a Need posted on NeedSaaS -- a request for software, an AI agent, or an automated workflow.`,
+        n.solution_type && `Possible solution type: ${n.solution_type}.`,
+        n.industry && `Industry: ${n.industry}.`,
+        n.who_for && `Who it's for: ${n.who_for}.`,
+        `${n.vote_count} people have said they have this problem too.`,
+        n.reward_amount > 0 && `$${n.reward_amount} pledged toward a build reward -- a non-binding demand signal, not money currently collected or charged.`,
+        `NeedScore: ${n.need_score}. Status: ${n.status}.`,
+      ].filter(Boolean).join(' '),
     },
   };
 }
@@ -91,6 +99,10 @@ export default async function NeedPage({ params }: Props) {
             need_score: (need as any).need_score ?? 0,
             status: (need as any).status ?? 'open',
             canonicalUrl: canonical,
+            who_for: (need as any).who_for ?? null,
+            industry: (need as any).industry ?? null,
+            solution_type: (need as any).solution_type ?? null,
+            desired_outcome: (need as any).desired_outcome ?? null,
           })} />
           <JsonLd data={breadcrumbJsonLd([
             { name: 'Home', url: SITE_URL },

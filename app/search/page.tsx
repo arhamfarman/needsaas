@@ -146,7 +146,7 @@ export default function SearchPage() {
         trackSearchEvent(q, filtered.length);
         
         if (filtered.length === 0) {
-          router.push(`/dashboard?tab=needs&title=${encodeURIComponent(q.trim())}#post-a-need`);
+          router.push(`/submit-need?title=${encodeURIComponent(q.trim())}`);
           return;
         }
       }
@@ -319,7 +319,7 @@ export default function SearchPage() {
               Post your Need for free and inspire someone to build it.
             </p>
             <Button asChild className="mt-6 bg-brand text-brand-foreground hover:bg-brand/90">
-              <Link href="/dashboard?tab=needs">
+              <Link href="/submit-need">
                 <Sparkles className="mr-2 h-4 w-4" /> Post your need — it&apos;s free
               </Link>
             </Button>
