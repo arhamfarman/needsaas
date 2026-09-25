@@ -94,7 +94,7 @@ BEGIN
   INTO v_builder_categories
   FROM products WHERE owner_id = builder_uuid AND paid = true;
 
-  RETURN QUERY
+  RETURN QUERY  
   SELECT
     n.id,
     n.title,

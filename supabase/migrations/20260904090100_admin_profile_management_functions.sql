@@ -89,3 +89,4 @@ REVOKE ALL ON FUNCTION public.admin_set_pro_builder(uuid, boolean) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.admin_set_is_admin(uuid, boolean) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_set_verified(uuid, boolean) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_set_pro_builder(uuid, boolean) TO authenticated;
+  
