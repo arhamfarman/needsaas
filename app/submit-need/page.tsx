@@ -1,135 +1,72 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/components/auth-provider';
 import { NeedForm } from '@/components/forms/need-form';
-import { Button } from '@/components/ui/button';
 import type { Category } from '@/lib/types';
-import {
-  ArrowRight, ArrowDown, Lightbulb, Users, Hammer, Gift, Sparkles,
-} from 'lucide-react';
+import { trackFunnelEvent } from '@/lib/funnel-analytics';
+import { Lightbulb, Check } from 'lucide-react';
 
-const BENEFITS = [
-  { icon: Lightbulb, text: 'Post your need for free' },
-  { icon: Sparkles, text: 'No technical knowledge required' },
-  { icon: Users, text: 'Share it with people who have the same problem' },
-  { icon: Hammer, text: 'Builders can discover and build solutions' },
-  { icon: Gift, text: 'Request software, AI agents, or automated workflows' },
-];
+const BENEFITS = ['Free to post', 'No technical knowledge required', 'Builders can discover your problem'];
 
-export default function SubmitNeedPage() {
+// NeedForm reads useSearchParams() (to prefill from a Starter Pack idea or
+// a zero-result search query) -- that requires a Suspense boundary or the
+// whole route deopts out of static generation, confirmed by the build
+// (`/submit-need deopted into client-side rendering`). Same fix already
+// used for app/signin and app/reset-password.
+function SubmitNeedPageInner() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
-  const formRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    trackFunnelEvent('submit_need_view');
     supabase.from('categories').select('*').order('name').then(({ data }) => setCategories((data as Category[]) ?? []));
   }, []);
 
-  function scrollToForm() {
-    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
   return (
-    <div className="relative">
-      {/* Hero */}
-      <section className="relative overflow-hidden border-b border-border/40">
-        <div className="absolute inset-0 -z-10 mesh-gradient" />
-        <div className="pointer-events-none absolute left-1/2 top-0 -z-10 h-[400px] w-[800px] -translate-x-1/2 rounded-full bg-brand/5 blur-[140px]" />
-
-        <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6 sm:py-24 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="mx-auto mb-6 flex w-fit items-center gap-2 rounded-full border border-border/50 bg-card/60 px-3.5 py-1.5 text-xs font-medium text-muted-foreground shadow-soft backdrop-blur"
-          >
-            <Sparkles className="h-3.5 w-3.5 text-brand" /> For anyone with a problem
-          </motion.div>
-
-          <motion.h1
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
-            className="font-display text-3xl font-semibold leading-[1.1] tracking-tight text-foreground sm:text-5xl"
-          >
-            Need something built?
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-            className="mx-auto mt-5 max-w-xl text-balance text-base leading-relaxed text-muted-foreground sm:text-lg"
-          >
-            Tell us about a software, AI agent, or workflow you wish existed. Post your need for free and share it
-            with others who have the same problem. You don&apos;t need to know what type of technology solves it —
-            just describe the problem.
-          </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-            className="mx-auto mt-8 grid max-w-md grid-cols-1 gap-2.5 text-left sm:grid-cols-2"
-          >
-            {BENEFITS.map((b) => (
-              <div key={b.text} className="flex items-center gap-2.5 text-sm text-foreground/90">
-                <b.icon className="h-4 w-4 shrink-0 text-brand" /> {b.text}
-              </div>
-            ))}
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            className="mt-9"
-          >
-            <Button size="lg" onClick={scrollToForm} className="group h-12 rounded-xl bg-brand px-7 text-base text-brand-foreground shadow-soft hover:bg-brand/90">
-              Tell us what you need
-              <ArrowDown className="ml-2 h-4 w-4 transition group-hover:translate-y-0.5" />
-            </Button>
-          </motion.div>
+    <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
+      {/* Compact hero -- headline, one sentence, three short bullets, straight into the form */}
+      <div className="mb-6 flex items-start gap-3">
+        <div className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand sm:flex">
+          <Lightbulb className="h-5 w-5" />
         </div>
-      </section>
+        <div>
+          <h1 className="font-display text-2xl font-semibold leading-tight tracking-tight text-foreground sm:text-3xl">
+            Have a problem you wish someone would solve?
+          </h1>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base">
+            Tell us what you wish existed. It could be software, an AI agent, an automation, a workflow, or something
+            else — you don&apos;t need to know the technical solution, just describe the problem.
+          </p>
+        </div>
+      </div>
 
-      {/* Form */}
-      <section ref={formRef} className="mx-auto max-w-2xl px-4 py-14 sm:px-6 lg:px-8">
-        {authLoading ? null : !user ? (
-          <div className="rounded-2xl border border-border/60 bg-card/40 p-8 text-center">
-            <h2 className="font-display text-xl font-semibold text-foreground">Sign in to post your Need</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Takes a few seconds — then come straight back here to describe your problem.
-            </p>
-            <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Button asChild size="lg" className="bg-brand text-brand-foreground hover:bg-brand/90">
-                <Link href="/signin?tab=signup&next=/submit-need">
-                  Create a free account <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-              <Button asChild size="lg" variant="outline">
-                <Link href="/signin?next=/submit-need">I already have an account</Link>
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <h2 className="mb-6 font-display text-2xl font-semibold text-foreground">Describe your problem</h2>
-            <NeedForm
-              categories={categories}
-              onDone={(createdNeedId) => {
-                if (createdNeedId) router.push(`/needs/${createdNeedId}?share=1`);
-              }}
-            />
-          </>
-        )}
-      </section>
+      <div className="mb-6 flex flex-wrap gap-x-4 gap-y-1.5">
+        {BENEFITS.map((b) => (
+          <span key={b} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Check className="h-3.5 w-3.5 text-emerald-500" /> {b}
+          </span>
+        ))}
+      </div>
+
+      <div className="rounded-2xl border border-border/60 bg-white p-5 shadow-card sm:p-6">
+        <NeedForm
+          categories={categories}
+          onDone={(createdNeedId) => {
+            if (createdNeedId) router.push(`/needs/${createdNeedId}?share=1`);
+          }}
+        />
+      </div>
     </div>
+  );
+}
+
+export default function SubmitNeedPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" />}>
+      <SubmitNeedPageInner />
+    </Suspense>
   );
 }
