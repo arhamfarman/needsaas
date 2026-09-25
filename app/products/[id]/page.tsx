@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { supabase, productImagePublicUrl } from '@/lib/supabase';
 import { ProductDetailView } from '@/components/product-detail-view';
 import { JsonLd, softwareJsonLd, breadcrumbJsonLd } from '@/components/json-ld';
 
@@ -11,7 +11,7 @@ type Props = { params: { id: string } };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { data: product } = await supabase
     .from('products')
-    .select(`name, tagline, description, url, logo_url, pricing, price_from, category:categories(name)`)
+    .select(`name, tagline, description, problem_solved, target_audience, url, logo_url, pricing, price_from, category:categories(name)`)
     .eq('id', params.id)
     .maybeSingle();
 
@@ -31,7 +31,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = `${p.name} — ${p.tagline || 'Software'}`;
   const description = (p.description || p.tagline || '').slice(0, 160);
   const canonical = `${SITE_URL}/products/${params.id}`;
-  const ogImage = p.logo_url || `${SITE_URL}/Logo.png`;
+  // Was the raw private storage path (e.g. "editorial/logos/slack.svg") used
+  // directly as if it were a URL -- resolved to nothing for any crawler.
+  // product-images is now a public bucket (see
+  // 20260923120000_builder_product_submission.sql); this builds the real,
+  // permanently-fetchable URL instead.
+  const ogImage = productImagePublicUrl(p.logo_url) || `${SITE_URL}/Logo.png`;
 
   return {
     title,
@@ -57,7 +62,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       images: [ogImage],
     },
     other: {
-      'ai:context': `${p.name} is ${p.pricing || 'a'} software product. ${p.tagline || ''} ${p.description || ''}`,
+      'ai:context': [
+        `${p.name} is ${p.pricing || 'a'} software product.`,
+        p.tagline,
+        p.description,
+        p.problem_solved && `Problem it solves: ${p.problem_solved}`,
+        p.target_audience && `Who it's for: ${p.target_audience}`,
+      ].filter(Boolean).join(' '),
     },
   };
 }
@@ -85,7 +96,7 @@ export default async function ProductPage({ params }: Props) {
             tagline: (product as any).tagline,
             description: (product as any).description,
             url: (product as any).url,
-            logo_url: (product as any).logo_url,
+            logo_url: productImagePublicUrl((product as any).logo_url),
             pricing: (product as any).pricing,
             price_from: (product as any).price_from,
             repo_url: (product as any).repo_url,
@@ -96,6 +107,8 @@ export default async function ProductPage({ params }: Props) {
             owner_username: (product as any).profile?.username ?? null,
             owner_verified: (product as any).profile?.verified ?? false,
             canonicalUrl: canonical,
+            key_features: (product as any).key_features ?? null,
+            target_audience: (product as any).target_audience ?? null,
           })} />
           <JsonLd data={breadcrumbJsonLd([
             { name: 'Home', url: SITE_URL },

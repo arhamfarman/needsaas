@@ -18,6 +18,9 @@ function SignInForm() {
   const { signIn, signUp, signInWithGoogle } = useAuth();
   const initialTab = params.get('tab') === 'signup' ? 'signup' : 'signin';
   const [tab, setTab] = useState(initialTab);
+  // Lets an entry point like /submit-product send a new or returning user
+  // back to itself after auth, instead of always dropping them on /dashboard.
+  const nextPath = params.get('next')?.startsWith('/') ? params.get('next')! : '/dashboard';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -35,7 +38,7 @@ function SignInForm() {
     if (tab === 'signin') {
       const { error } = await signIn(email, password);
       if (error) { setError(error); setLoading(false); return; }
-      router.push('/dashboard');
+      router.push(nextPath);
     } else {
       if (username.trim().length < 3) { setError('Username must be at least 3 characters'); setLoading(false); return; }
       const { error, needsEmailConfirmation } = await signUp(email, password, username.trim());
@@ -45,14 +48,14 @@ function SignInForm() {
         setConfirmEmailSent(true);
         return;
       }
-      router.push('/dashboard');
+      router.push(nextPath);
     }
   }
 
   async function handleGoogleSignIn() {
     setError(null);
     setLoading(true);
-    const { error } = await signInWithGoogle();
+    const { error } = await signInWithGoogle(nextPath);
     if (error) {
       setError(error);
       setLoading(false);

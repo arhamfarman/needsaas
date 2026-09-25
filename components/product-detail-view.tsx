@@ -7,20 +7,25 @@ import { motion } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/auth-provider';
 import { trackPageView } from '@/lib/analytics';
-import type { Product, Review, Need, NeedProductLink, Product as ProductType } from '@/lib/types';
+import type { Product, Review, Need, Category } from '@/lib/types';
+import { PRODUCT_TYPE_LABELS } from '@/lib/types';
 import { NeedCard } from '@/components/need-card';
 import { ProductImage } from '@/components/product-image';
 import { VerifiedBadge } from '@/components/verified-badge';
+import { ShareButtons } from '@/components/share-buttons';
+import { ProductForm } from '@/components/forms/product-form';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import {
-  Star, ArrowLeft, Share2, ExternalLink, Github, Package, Lightbulb,
+  Star, ArrowLeft, ExternalLink, Github, Package, Lightbulb,
   PencilLine, MessageSquare, AlertCircle, Bookmark, Eye, FileText,
+  Target, ListChecks, Workflow, CheckCircle2, PlayCircle, Video,
 } from 'lucide-react';
 import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -52,6 +57,10 @@ function ProductDetailPageInner() {
   const [reviewBody, setReviewBody] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [myReview, setMyReview] = useState<Review | null>(null);
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [justPublished, setJustPublished] = useState(false);
 
   const load = useCallback(async () => {
     const { data } = await supabase
@@ -95,6 +104,12 @@ function ProductDetailPageInner() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Only needed if the viewer turns out to be the owner (edit dialog) --
+  // fetched unconditionally since it's a small, cached, public table.
+  useEffect(() => {
+    supabase.from('categories').select('*').order('name').then(({ data }) => setCategories((data as Category[]) ?? []));
+  }, []);
+
   // Track page view once
   useEffect(() => {
     if (id) trackPageView('product', id);
@@ -103,6 +118,10 @@ function ProductDetailPageInner() {
   useEffect(() => {
     if (searchParams.get('paid') === '1') {
       toast.success('Payment received! Your product is now published.');
+      router.replace(`/products/${id}`);
+    }
+    if (searchParams.get('share') === '1') {
+      setJustPublished(true);
       router.replace(`/products/${id}`);
     }
   }, [searchParams, router, id]);
@@ -176,6 +195,21 @@ function ProductDetailPageInner() {
         <ArrowLeft className="h-4 w-4" /> Back to explore
       </Link>
 
+      {justPublished && (
+        <div className="mb-6 flex flex-col items-start justify-between gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 sm:flex-row sm:items-center">
+          <div>
+            <p className="text-sm font-medium text-foreground">🎉 Your product is live!</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">This is your shareable page — post it anywhere.</p>
+          </div>
+          <ShareButtons
+            url={typeof window !== 'undefined' ? window.location.href : `https://needsaas.com/products/${product.id}`}
+            text={`I just listed ${product.name} on NeedSaaS 🚀\n\n${product.tagline}`}
+            label="Share your product"
+            variant="default"
+          />
+        </div>
+      )}
+
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
           <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl">
@@ -207,6 +241,9 @@ function ProductDetailPageInner() {
             </div>
             <p className="text-lg text-muted-foreground">{product.tagline}</p>
             <div className="flex flex-wrap items-center gap-2 pt-1">
+              {product.product_type && product.product_type !== 'saas' && (
+                <Badge variant="outline" className="border-brand/20 bg-brand/5 text-brand">{PRODUCT_TYPE_LABELS[product.product_type]}</Badge>
+              )}
               {product.category && <Link href={`/software/${product.category.slug}`}><Badge variant="outline" className="border-border/60 text-muted-foreground hover:border-brand hover:text-brand">{product.category.name}</Badge></Link>}
               {product.pricing && <Badge variant="outline" className="border-border/60 text-muted-foreground">{product.pricing}</Badge>}
               {product.price_from && <Badge variant="outline" className="border-brand/20 text-brand">From {product.price_from}</Badge>}
@@ -221,7 +258,7 @@ function ProductDetailPageInner() {
               </Link>
             </div>
           </div>
-          <div className="flex shrink-0 gap-2">
+          <div className="flex shrink-0 flex-wrap gap-2">
             {product.url && (
               <Button asChild className="bg-brand text-brand-foreground hover:bg-brand/90">
                 <a href={product.url} target="_blank" rel="noopener noreferrer">
@@ -229,17 +266,24 @@ function ProductDetailPageInner() {
                 </a>
               </Button>
             )}
-            <Button
-              variant="outline"
-              onClick={toggleBookmark}
-              disabled={bookmarkPending}
-              className={cn(isBookmarked && 'border-brand text-brand')}
-            >
-              <Bookmark className={cn('h-4 w-4', isBookmarked && 'fill-brand')} />
-            </Button>
-            <Button variant="outline" onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success('Link copied'); }}>
-              <Share2 className="h-4 w-4" />
-            </Button>
+            {isOwner ? (
+              <Button variant="outline" onClick={() => setEditOpen(true)}>
+                <PencilLine className="mr-1.5 h-4 w-4" /> Edit
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={toggleBookmark}
+                disabled={bookmarkPending}
+                className={cn(isBookmarked && 'border-brand text-brand')}
+              >
+                <Bookmark className={cn('h-4 w-4', isBookmarked && 'fill-brand')} />
+              </Button>
+            )}
+            <ShareButtons
+              url={typeof window !== 'undefined' ? window.location.href : `https://needsaas.com/products/${product.id}`}
+              text={`Check out ${product.name} on NeedSaaS — ${product.tagline}`}
+            />
           </div>
         </div>
 
@@ -278,12 +322,71 @@ function ProductDetailPageInner() {
           </div>
         )}
 
-        <p className="mt-8 whitespace-pre-line text-base leading-relaxed text-foreground/90">{product.description}</p>
+        <section className="mt-8">
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">What it does</h2>
+          <p className="whitespace-pre-line text-base leading-relaxed text-foreground/90">{product.description}</p>
+        </section>
 
-        {product.repo_url && (
-          <a href={product.repo_url} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-            <Github className="h-4 w-4" /> View repository
-          </a>
+        <div className="mt-4 flex flex-wrap items-center gap-4">
+          {product.repo_url && (
+            <a href={product.repo_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+              <Github className="h-4 w-4" /> View repository
+            </a>
+          )}
+          {product.demo_url && (
+            <a href={product.demo_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+              <ExternalLink className="h-4 w-4" /> View demo
+            </a>
+          )}
+          {product.video_url && (
+            <a href={product.video_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+              <PlayCircle className="h-4 w-4" /> Watch demo video
+            </a>
+          )}
+        </div>
+
+        {product.problem_solved && (
+          <section className="mt-10">
+            <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <Target className="h-3.5 w-3.5" /> The problem
+            </h2>
+            <p className="whitespace-pre-line text-base leading-relaxed text-foreground/90">{product.problem_solved}</p>
+          </section>
+        )}
+
+        {product.target_audience && (
+          <section className="mt-10">
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Who it&apos;s for</h2>
+            <p className="whitespace-pre-line text-base leading-relaxed text-foreground/90">{product.target_audience}</p>
+          </section>
+        )}
+
+        {product.key_features && product.key_features.length > 0 && (
+          <section className="mt-10">
+            <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <ListChecks className="h-3.5 w-3.5" /> Key features
+            </h2>
+            <ul className="space-y-2">
+              {product.key_features.map((f, i) => (
+                <li key={i} className="flex items-start gap-2 text-base leading-relaxed text-foreground/90">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" /> {f}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {product.how_it_works && (
+          <section className="mt-10">
+            <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <Workflow className="h-3.5 w-3.5" /> How it works
+            </h2>
+            <p className="whitespace-pre-line text-base leading-relaxed text-foreground/90">{product.how_it_works}</p>
+          </section>
+        )}
+
+        {product.founder_name && (
+          <p className="mt-8 text-sm text-muted-foreground">Built by {product.founder_name}</p>
         )}
       </motion.div>
 
@@ -415,6 +518,21 @@ function ProductDetailPageInner() {
           </div>
         )}
       </section>
+
+      {isOwner && (
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit {product.name}</DialogTitle>
+            </DialogHeader>
+            <ProductForm
+              categories={categories}
+              product={product}
+              onDone={() => { setEditOpen(false); load(); }}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

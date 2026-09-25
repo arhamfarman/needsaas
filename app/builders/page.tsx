@@ -67,13 +67,20 @@ export default function BuildersPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
-      <div className="mb-10">
-        <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-          Builders
-        </h1>
-        <p className="mt-2 text-muted-foreground">
-          Creators shipping real software on NeedSaaS.
-        </p>
+      <div className="mb-10 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+            Builders
+          </h1>
+          <p className="mt-2 text-muted-foreground">
+            Creators shipping real software on NeedSaaS.
+          </p>
+        </div>
+        <Button asChild className="shrink-0 bg-brand text-brand-foreground hover:bg-brand/90">
+          <Link href="/submit-product">
+            Built something? List it <ArrowRight className="ml-1.5 h-4 w-4" />
+          </Link>
+        </Button>
       </div>
 
       {/* Search */}

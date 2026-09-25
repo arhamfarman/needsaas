@@ -14,3 +14,14 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true,
   },
 });
+
+// `product-images` is a public bucket (see 20260923120000_builder_product_submission.sql)
+// -- its objects are already readable by anon via storage RLS, so a public
+// URL carries no less exposure than a signed one, but it works permanently
+// in server-rendered OG/JSON-LD tags without needing to mint (and refresh) a
+// signed URL for a crawler that will never re-fetch it after the first scrape.
+export function productImagePublicUrl(path: string | null | undefined): string | null {
+  if (!path) return null;
+  if (/^https?:\/\//.test(path)) return path;
+  return `${supabaseUrl}/storage/v1/object/public/product-images/${path}`;
+}

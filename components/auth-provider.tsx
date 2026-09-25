@@ -12,7 +12,7 @@ type AuthContextValue = {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string, username: string) => Promise<{ error: string | null; needsEmailConfirmation: boolean }>;
-  signInWithGoogle: () => Promise<{ error: string | null }>;
+  signInWithGoogle: (redirectPath?: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 };
@@ -87,11 +87,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null, needsEmailConfirmation: !data.session };
   };
 
-  const signInWithGoogle: AuthContextValue['signInWithGoogle'] = async () => {
+  const signInWithGoogle: AuthContextValue['signInWithGoogle'] = async (redirectPath = '/dashboard') => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/dashboard`,
+        redirectTo: `${window.location.origin}${redirectPath}`,
       },
     });
     return { error: error ? error.message : null };
