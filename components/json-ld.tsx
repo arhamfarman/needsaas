@@ -15,7 +15,7 @@ export function JsonLd({ data }: { data: Record<string, any> | Record<string, an
 export function softwareJsonLd(product: {
   name: string;
   tagline: string;
-  description: string;
+  description: string | null;
   url: string | null;
   logo_url: string | null;
   pricing: string | null;
@@ -41,7 +41,9 @@ export function softwareJsonLd(product: {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
     name: product.name,
-    description: product.tagline || product.description,
+    // Description first, tagline as the fallback -- description is now
+    // optional at submission, tagline never is.
+    description: product.description || product.tagline,
     applicationCategory: product.category_name || 'SoftwareApplication',
     ...(product.url && { url: product.url }),
     ...(product.logo_url && { image: product.logo_url }),

@@ -30,7 +30,12 @@ export function NeedMatchDialog({
   const [pending, setPending] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open || !description) return;
+    if (!open) return;
+    // Description is optional on product submission now -- with nothing to
+    // extract keywords from, there's nothing to match. Without this,
+    // `loading` (which starts true) never got set back to false and the
+    // dialog was stuck on its skeleton state forever.
+    if (!description) { setLoading(false); return; }
     setLoading(true);
 
     async function findMatches() {

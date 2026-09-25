@@ -119,7 +119,7 @@ export type Product = {
   id: string;
   name: string;
   tagline: string;
-  description: string;
+  description: string | null;
   url: string | null;
   repo_url: string | null;
   doc_url: string | null;

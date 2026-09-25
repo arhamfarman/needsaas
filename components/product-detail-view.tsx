@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/auth-provider';
 import { trackPageView } from '@/lib/analytics';
+import { trackFunnelEvent } from '@/lib/funnel-analytics';
 import type { Product, Review, Need, Category } from '@/lib/types';
 import { PRODUCT_TYPE_LABELS } from '@/lib/types';
 import { NeedCard } from '@/components/need-card';
@@ -196,17 +197,22 @@ function ProductDetailPageInner() {
       </Link>
 
       {justPublished && (
-        <div className="mb-6 flex flex-col items-start justify-between gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 sm:flex-row sm:items-center">
-          <div>
-            <p className="text-sm font-medium text-foreground">🎉 Your product is live!</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">This is your shareable page — post it anywhere.</p>
+        <div className="mb-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-5">
+          <p className="text-lg font-semibold text-foreground">🎉 Your product is live!</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Your public product page is ready. Share it with your audience.
+          </p>
+          <div className="mt-4">
+            <ShareButtons
+              url={typeof window !== 'undefined' ? window.location.href : `https://needsaas.com/products/${product.id}`}
+              text={`I just listed ${product.name} on NeedSaaS 🚀\n\n${product.tagline}\n\nCheck it out:`}
+              layout="row"
+              onShare={(platform) => trackFunnelEvent('submit_product_share_clicked', { product_id: product.id, platform })}
+            />
           </div>
-          <ShareButtons
-            url={typeof window !== 'undefined' ? window.location.href : `https://needsaas.com/products/${product.id}`}
-            text={`I just listed ${product.name} on NeedSaaS 🚀\n\n${product.tagline}`}
-            label="Share your product"
-            variant="default"
-          />
+          <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+            <Link href="/search?tab=needs" className="font-medium text-brand hover:underline">Browse active Needs →</Link>
+          </div>
         </div>
       )}
 
@@ -322,10 +328,12 @@ function ProductDetailPageInner() {
           </div>
         )}
 
-        <section className="mt-8">
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">What it does</h2>
-          <p className="whitespace-pre-line text-base leading-relaxed text-foreground/90">{product.description}</p>
-        </section>
+        {product.description && (
+          <section className="mt-8">
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">What it does</h2>
+            <p className="whitespace-pre-line text-base leading-relaxed text-foreground/90">{product.description}</p>
+          </section>
+        )}
 
         <div className="mt-4 flex flex-wrap items-center gap-4">
           {product.repo_url && (

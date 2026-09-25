@@ -1,28 +1,54 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/auth-provider';
 import type { Category, Product, ProductType } from '@/lib/types';
 import { PRODUCT_TYPE_LABELS } from '@/lib/types';
+import { saveDraft, loadDraft, clearDraft } from '@/lib/form-draft';
+import { trackFunnelEvent } from '@/lib/funnel-analytics';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { RadioGroup } from '@/components/ui/radio-group';
 import { LogoUploader, GalleryUploader } from '@/components/image-uploader';
 import { NeedMatchDialog } from '@/components/forms/need-match-dialog';
 import { toast } from 'sonner';
 import {
-  Loader2, CreditCard, Lock, Info, Package, Link2, Image, FileText, Tag,
-  Target, ListChecks, Workflow, Plus, X as XIcon, Video, Github as GithubIcon,
+  Loader2, Package, Plus, X as XIcon, ChevronDown, Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const LISTING_FEE_CENTS = 1000; // $10.00
-
 const PRODUCT_TYPES: ProductType[] = ['saas', 'ai_agent', 'ai_tool', 'automation', 'dev_tool', 'api', 'other'];
+const PRICING_OPTIONS = ['Free', 'Freemium', 'Paid', 'Contact for pricing'];
+
+// Deliberately permissive -- accepts a plain domain (adds https:// for
+// them) as well as a full URL, and doesn't care what kind of destination
+// it is (marketing site, docs page, GitHub repo, app.foo.com, etc.). Only
+// rejects things that clearly aren't a URL at all.
+function normalizeUrl(input: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    const parsed = new URL(withProtocol);
+    if (!parsed.hostname.includes('.')) return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
+type Draft = {
+  name: string; tagline: string; url: string; description: string; problemSolved: string;
+  targetAudience: string; keyFeatures: string[]; howItWorks: string; productType: ProductType;
+  repoUrl: string; docUrl: string; demoUrl: string; videoUrl: string; founderName: string;
+  pricing: string; priceFrom: string; categoryId: string; tagsInput: string;
+};
 
 export function ProductForm({
   categories,
@@ -35,17 +61,20 @@ export function ProductForm({
   product?: Product;
 }) {
   const { user, profile } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
   const isEditing = !!product;
+  const draftKey = 'product';
 
   const [name, setName] = useState(product?.name ?? '');
   const [tagline, setTagline] = useState(product?.tagline ?? '');
+  const [url, setUrl] = useState(product?.url ?? '');
   const [description, setDescription] = useState(product?.description ?? '');
   const [problemSolved, setProblemSolved] = useState(product?.problem_solved ?? '');
   const [targetAudience, setTargetAudience] = useState(product?.target_audience ?? '');
   const [keyFeatures, setKeyFeatures] = useState<string[]>(product?.key_features?.length ? product.key_features : ['']);
   const [howItWorks, setHowItWorks] = useState(product?.how_it_works ?? '');
   const [productType, setProductType] = useState<ProductType>(product?.product_type ?? 'saas');
-  const [url, setUrl] = useState(product?.url ?? '');
   const [repoUrl, setRepoUrl] = useState(product?.repo_url ?? '');
   const [docUrl, setDocUrl] = useState(product?.doc_url ?? '');
   const [demoUrl, setDemoUrl] = useState(product?.demo_url ?? '');
@@ -57,30 +86,56 @@ export function ProductForm({
   const [tagsInput, setTagsInput] = useState('');
   const [logoUrl, setLogoUrl] = useState<string | null>(product?.logo_url ?? null);
   const [images, setImages] = useState<string[]>(product?.images ?? []);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [publishedCount, setPublishedCount] = useState(0);
   const [alreadyClaimedFree, setAlreadyClaimedFree] = useState(false);
   const [matchDialog, setMatchDialog] = useState<{ open: boolean; productId: string; description: string }>({
     open: false,
     productId: '',
     description: '',
   });
+  const startedRef = useRef(false);
+  const restoredRef = useRef(false);
 
   useEffect(() => {
     if (!user || isEditing) return;
-    Promise.all([
-      supabase.from('products').select('id', { count: 'exact', head: true }).eq('owner_id', user.id).eq('paid', true),
-      supabase.from('profiles').select('free_product_claimed').eq('id', user.id).maybeSingle(),
-    ]).then(([countRes, profileRes]) => {
-      setPublishedCount(countRes.count ?? 0);
-      setAlreadyClaimedFree((profileRes.data as any)?.free_product_claimed ?? false);
-    });
+    supabase.from('profiles').select('free_product_claimed').eq('id', user.id).maybeSingle()
+      .then(({ data }) => setAlreadyClaimedFree((data as any)?.free_product_claimed ?? false));
   }, [user, isEditing]);
+
+  // Restore a pre-auth draft once, on mount -- never in edit mode. Uploaded
+  // images can't be carried through this way (they need an authenticated
+  // storage destination), so logo/screenshots are the one thing the
+  // submitter may need to re-add after signing in -- everything else text
+  // is preserved.
+  useEffect(() => {
+    if (isEditing || restoredRef.current) return;
+    restoredRef.current = true;
+    const draft = loadDraft<Draft>(draftKey);
+    if (!draft) return;
+    setName(draft.name); setTagline(draft.tagline); setUrl(draft.url); setDescription(draft.description);
+    setProblemSolved(draft.problemSolved); setTargetAudience(draft.targetAudience);
+    setKeyFeatures(draft.keyFeatures.length ? draft.keyFeatures : ['']);
+    setHowItWorks(draft.howItWorks); setProductType(draft.productType);
+    setRepoUrl(draft.repoUrl); setDocUrl(draft.docUrl); setDemoUrl(draft.demoUrl); setVideoUrl(draft.videoUrl);
+    setFounderName(draft.founderName); setPricing(draft.pricing); setPriceFrom(draft.priceFrom);
+    setCategoryId(draft.categoryId); setTagsInput(draft.tagsInput);
+    if (draft.howItWorks || draft.productType !== 'saas' || draft.demoUrl || draft.founderName) setMoreOpen(true);
+    clearDraft(draftKey);
+    toast.success('Welcome back — your listing is ready to publish.');
+  }, [isEditing]);
+
+  useEffect(() => {
+    if (!isEditing && name.trim().length > 0 && !startedRef.current) {
+      startedRef.current = true;
+      trackFunnelEvent('submit_product_started');
+    }
+  }, [name, isEditing]);
 
   const isProBuilder = profile?.pro_builder ?? false;
   // Mirrors the server-side check in claim_free_product_listing(): a lifetime
-  // flag, not "do I currently have a paid product" (that version could be
-  // reset by deleting and recreating a listing -- see the migration).
+  // flag, not "do I currently have a paid product" (that could be reset by
+  // deleting and recreating a listing -- see the migration).
   const isFreeListing = isProBuilder || !alreadyClaimedFree;
 
   function updateFeature(i: number, value: string) {
@@ -94,29 +149,45 @@ export function ProductForm({
     setKeyFeatures((prev) => (prev.length <= 1 ? prev : prev.filter((_, idx) => idx !== i)));
   }
 
+  function currentDraft(): Draft {
+    return {
+      name, tagline, url, description, problemSolved, targetAudience, keyFeatures,
+      howItWorks, productType, repoUrl, docUrl, demoUrl, videoUrl, founderName,
+      pricing, priceFrom, categoryId, tagsInput,
+    };
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!user) return;
+    trackFunnelEvent('submit_product_submit_clicked');
     if (name.trim().length < 2) { toast.error('Product name is too short'); return; }
+    const normalizedUrl = normalizeUrl(url);
+    if (!normalizedUrl) { toast.error('Add a valid website URL (e.g. yourproduct.com or https://yourproduct.com)'); return; }
     if (tagline.trim().length < 5) { toast.error('Add a short tagline'); return; }
-    if (description.trim().length < 40) { toast.error('Describe what your product does, who it\'s for, and why in at least 40 characters'); return; }
-    if (problemSolved.trim().length < 15) { toast.error('Describe the specific problem this solves'); return; }
-    if (targetAudience.trim().length < 10) { toast.error('Describe who this is for'); return; }
-    const cleanFeatures = keyFeatures.map((f) => f.trim()).filter(Boolean);
-    if (cleanFeatures.length < 1) { toast.error('List at least one key feature'); return; }
+
+    // Defer auth to this point, not page load -- preserve everything typed
+    // so far and pick back up here once signed in (?next= already exists).
+    if (!user) {
+      trackFunnelEvent('submit_product_auth_required');
+      saveDraft(draftKey, currentDraft());
+      router.push(`/signin?next=${encodeURIComponent(pathname)}`);
+      return;
+    }
 
     setLoading(true);
+
+    const cleanFeatures = keyFeatures.map((f) => f.trim()).filter(Boolean);
 
     const productData = {
       name: name.trim(),
       tagline: tagline.trim(),
-      description: description.trim(),
-      problem_solved: problemSolved.trim(),
-      target_audience: targetAudience.trim(),
+      description: description.trim() || null,
+      problem_solved: problemSolved.trim() || null,
+      target_audience: targetAudience.trim() || null,
       key_features: cleanFeatures,
       how_it_works: howItWorks.trim() || null,
       product_type: productType,
-      url: url.trim() || null,
+      url: normalizedUrl,
       repo_url: repoUrl.trim() || null,
       doc_url: docUrl.trim() || null,
       demo_url: demoUrl.trim() || null,
@@ -169,6 +240,7 @@ export function ProductForm({
     if (!claimError && claimed) {
       toast.success(isProBuilder ? 'Your software is published!' : 'Your first software listing is published — free!');
       setLoading(false);
+      trackFunnelEvent('submit_product_created', { product_id: productId, free: true });
       setMatchDialog({ open: true, productId, description: description.trim() });
       onDone(productId);
       return;
@@ -199,6 +271,7 @@ export function ProductForm({
 
       const { url: checkoutUrl } = await res.json();
       if (!checkoutUrl) throw new Error('No checkout URL returned');
+      trackFunnelEvent('submit_product_created', { product_id: productId, free: false });
       window.location.href = checkoutUrl;
     } catch {
       toast.error('Payment could not be started. Your listing was saved as unpaid — you can retry from the dashboard.');
@@ -209,182 +282,140 @@ export function ProductForm({
 
   return (
     <>
-    <form onSubmit={submit} className="space-y-6">
-      <FormSection icon={Package} title="What are you listing?" description="NeedSaaS isn't just for SaaS — list any kind of software product.">
-        <div className="flex flex-wrap gap-2">
-          {PRODUCT_TYPES.map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setProductType(t)}
-              className={cn(
-                'rounded-lg border px-3 py-1.5 text-sm font-medium transition',
-                productType === t
-                  ? 'border-brand bg-brand/10 text-brand'
-                  : 'border-border/60 bg-white text-muted-foreground hover:border-border hover:text-foreground'
-              )}
-            >
-              {PRODUCT_TYPE_LABELS[t]}
-            </button>
-          ))}
-        </div>
-      </FormSection>
-
-      <FormSection icon={FileText} title="Basic Information" description="Tell people what your software is and who it's for.">
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="p-name">Product name</Label>
-            <Input id="p-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Postly" required />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="p-tagline">Short tagline</Label>
-            <Input id="p-tagline" value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder="e.g. AI-powered proposal generator for small agencies" required />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="p-desc">Describe your product</Label>
-            <p className="text-xs text-muted-foreground">
-              Tell people what it does, who it&apos;s for, and why they should care. Avoid vague phrases like
-              &ldquo;revolutionary platform&rdquo; — explain the actual problem and solution, as if to someone who&apos;s never heard of it.
-            </p>
-            <Textarea id="p-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What does it do? Who is it for? What makes it different?" rows={5} required />
-          </div>
-        </div>
-      </FormSection>
-
-      <FormSection icon={Target} title="Problem &amp; Audience" description="This is what makes your page useful to search engines, AI search, and people skimming it.">
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="p-problem">What problem does your product solve?</Label>
-            <p className="text-xs text-muted-foreground">e.g. &ldquo;Small agencies spend hours creating proposals manually. Our tool generates branded proposals from a short project brief.&rdquo;</p>
-            <Textarea id="p-problem" value={problemSolved} onChange={(e) => setProblemSolved(e.target.value)} placeholder="What specific problem does this solve?" rows={3} required />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="p-audience">Who is this for?</Label>
-            <p className="text-xs text-muted-foreground">e.g. &ldquo;Freelance designers and small creative agencies that regularly send client proposals.&rdquo;</p>
-            <Textarea id="p-audience" value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)} placeholder="Describe the ideal user or customer — business type, role, or person." rows={2} required />
-          </div>
-        </div>
-      </FormSection>
-
-      <FormSection icon={ListChecks} title="Key Features" description="List the most important things users can do with your product.">
+    <form onSubmit={submit} className="space-y-5">
+      {/* Essentials -- the only things asked for up front */}
+      <div className="space-y-4">
         <div className="space-y-2">
-          {keyFeatures.map((f, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <Input
-                value={f}
-                onChange={(e) => updateFeature(i, e.target.value)}
-                placeholder={`Feature ${i + 1}`}
-              />
-              {keyFeatures.length > 1 && (
-                <Button type="button" variant="ghost" size="icon" className="shrink-0 text-muted-foreground" onClick={() => removeFeature(i)}>
-                  <XIcon className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          ))}
-          {keyFeatures.length < 8 && (
-            <Button type="button" variant="outline" size="sm" onClick={addFeature} className="mt-1">
-              <Plus className="mr-1.5 h-3.5 w-3.5" /> Add feature
-            </Button>
-          )}
+          <Label htmlFor="p-name">Product name</Label>
+          <Input id="p-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Acme AI" required autoFocus className="text-base" />
         </div>
-      </FormSection>
-
-      <FormSection icon={Workflow} title="How It Works" description="Briefly explain how someone uses the product from start to finish.">
-        <Textarea value={howItWorks} onChange={(e) => setHowItWorks(e.target.value)} placeholder="e.g. Paste in a project brief, pick a template, and get a branded proposal in under a minute." rows={3} />
-      </FormSection>
-
-      <FormSection icon={Image} title="Branding" description="Upload your logo and product screenshots.">
-        <div className="space-y-5">
-          <div className="space-y-2">
-            <Label>Logo</Label>
-            <LogoUploader logoUrl={logoUrl} onLogoChange={setLogoUrl} />
-          </div>
-          <div className="space-y-2">
-            <Label>Screenshots</Label>
-            <GalleryUploader images={images} onImagesChange={setImages} />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="p-url">Website URL</Label>
+          {/* type="text", not "url" -- native URL validation rejects a bare
+              domain like "acme.ai" for missing a protocol, which is exactly
+              what normalizeUrl() below is meant to accept. Real validation
+              happens in submit(). */}
+          <Input id="p-url" type="text" inputMode="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="yourproduct.com" required className="text-base" />
         </div>
-      </FormSection>
-
-      <FormSection icon={Link2} title="Links" description="Where can people find, try, and read more about your product?">
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="p-url">Website URL</Label>
-            <Input id="p-url" type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://yourproduct.com" />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="p-demo">Demo URL (optional)</Label>
-              <Input id="p-demo" type="url" value={demoUrl} onChange={(e) => setDemoUrl(e.target.value)} placeholder="https://yourproduct.com/demo" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="p-video"><Video className="mr-1 inline h-3.5 w-3.5" />Demo video (optional)</Label>
-              <Input id="p-video" type="url" value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="https://youtube.com/watch?v=..." />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="p-repo"><GithubIcon className="mr-1 inline h-3.5 w-3.5" />Repository (optional)</Label>
-              <Input id="p-repo" type="url" value={repoUrl} onChange={(e) => setRepoUrl(e.target.value)} placeholder="https://github.com/..." />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="p-docs">Documentation (optional)</Label>
-              <Input id="p-docs" type="url" value={docUrl} onChange={(e) => setDocUrl(e.target.value)} placeholder="https://docs.yourproduct.com" />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="p-founder">Founder / company name (optional)</Label>
-            <Input id="p-founder" value={founderName} onChange={(e) => setFounderName(e.target.value)} placeholder="e.g. Jane at Postly" />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="p-tagline">Short tagline</Label>
+          <Input id="p-tagline" value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder="e.g. AI-powered customer support for small businesses" required className="text-base" />
         </div>
-      </FormSection>
+      </div>
 
-      <FormSection icon={CreditCard} title="Pricing" description="How is your product priced?">
-        <div className="space-y-4">
-          <RadioGroup value={pricing} onValueChange={setPricing} className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {['Free', 'Freemium', 'Paid', 'Contact for pricing'].map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setPricing(p)}
-                className={cn(
-                  'flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition',
-                  pricing === p
-                    ? 'border-brand/40 bg-brand/5 text-brand'
-                    : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground'
-                )}
-              >
-                <div className={cn(
-                  'flex h-4 w-4 items-center justify-center rounded-full border-2 transition',
-                  pricing === p ? 'border-brand' : 'border-muted-foreground/30'
-                )}>
-                  {pricing === p && <div className="h-2 w-2 rounded-full bg-brand" />}
-                </div>
-                {p}
-              </button>
-            ))}
-          </RadioGroup>
+      {!isEditing && (
+        <div className={cn(
+          'flex items-center gap-3 rounded-xl border p-3.5',
+          isFreeListing ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-brand/20 bg-brand/5'
+        )}>
+          <div className={cn(
+            'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+            isFreeListing ? 'bg-emerald-500/10 text-emerald-500' : 'bg-brand/10 text-brand'
+          )}>
+            <Sparkles className="h-4 w-4" />
+          </div>
+          <p className="text-sm font-medium text-foreground">
+            {isFreeListing
+              ? (isProBuilder ? 'Unlimited listings with Pro Builder' : 'Your first product listing is free')
+              : 'Listing fee: $10 (your first listing was already used)'}
+          </p>
+        </div>
+      )}
 
-          {pricing === 'Paid' && (
-            <div className="space-y-2">
-              <Label htmlFor="p-price-from">Price starts from (optional)</Label>
-              <div className="relative">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
+      {/* Recommended -- shown, not gated, but never blocks publishing */}
+      <div className="space-y-4 rounded-xl border border-border/60 p-4">
+        <p className="text-sm font-medium text-foreground">Help people understand your product <span className="font-normal text-muted-foreground">(recommended)</span></p>
+        <div className="space-y-2">
+          <Label htmlFor="p-desc">What does your product do? <span className="font-normal text-muted-foreground">(Optional)</span></Label>
+          <Textarea id="p-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe what your product helps people accomplish in 2–4 sentences." rows={3} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="p-problem">What problem does this solve?</Label>
+          <Textarea id="p-problem" value={problemSolved} onChange={(e) => setProblemSolved(e.target.value)} placeholder="Example: Small businesses spend hours manually following up with leads..." rows={2} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="p-audience">Who is it for?</Label>
+          <Input id="p-audience" value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)} placeholder="e.g. Freelance designers and small creative agencies" />
+        </div>
+        <div className="space-y-2">
+          <Label>What can people do with it?</Label>
+          <div className="space-y-2">
+            {keyFeatures.map((f, i) => (
+              <div key={i} className="flex items-center gap-2">
                 <Input
-                  id="p-price-from"
-                  value={priceFrom}
-                  onChange={(e) => setPriceFrom(e.target.value)}
-                  placeholder="9/mo, 49 lifetime, 0.01 per API call..."
-                  className="pl-7"
+                  value={f}
+                  onChange={(e) => updateFeature(i, e.target.value)}
+                  placeholder={i === 0 ? 'Example: Automatically capture leads, send follow-ups, track replies...' : `Feature ${i + 1}`}
                 />
+                {keyFeatures.length > 1 && (
+                  <Button type="button" variant="ghost" size="icon" className="shrink-0 text-muted-foreground" onClick={() => removeFeature(i)}>
+                    <XIcon className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
-              <p className="text-xs text-muted-foreground">Let visitors know your entry price. Leave blank if you prefer not to show it.</p>
-            </div>
-          )}
+            ))}
+            {keyFeatures.length < 8 && (
+              <Button type="button" variant="outline" size="sm" onClick={addFeature}>
+                <Plus className="mr-1.5 h-3.5 w-3.5" /> Add feature
+              </Button>
+            )}
+          </div>
         </div>
-      </FormSection>
+      </div>
 
-      <FormSection icon={Tag} title="Categories &amp; Tags" description="Help people and search engines discover your product.">
-        <div className="space-y-4">
+      {/* Optional -- collapsed by default */}
+      <details className="group rounded-xl border border-border/60" open={moreOpen} onToggle={(e) => setMoreOpen((e.target as HTMLDetailsElement).open)}>
+        <summary className="flex cursor-pointer list-none items-center justify-between p-4 text-sm font-medium text-foreground">
+          Add more details <span className="font-normal text-muted-foreground">(optional)</span>
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
+        </summary>
+        <div className="space-y-5 border-t border-border/60 p-4">
+          <div className="space-y-2">
+            <Label htmlFor="p-how">How it works</Label>
+            <Textarea id="p-how" value={howItWorks} onChange={(e) => setHowItWorks(e.target.value)} placeholder="Briefly explain how someone uses it from start to finish." rows={2} />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Pricing</Label>
+            <RadioGroup value={pricing} onValueChange={setPricing} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {PRICING_OPTIONS.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setPricing(p)}
+                  className={cn(
+                    'rounded-lg border px-3 py-2 text-xs font-medium transition',
+                    pricing === p ? 'border-brand bg-brand/10 text-brand' : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground'
+                  )}
+                >
+                  {p}
+                </button>
+              ))}
+            </RadioGroup>
+            {pricing === 'Paid' && (
+              <Input value={priceFrom} onChange={(e) => setPriceFrom(e.target.value)} placeholder="Starts from, e.g. $9/mo" className="mt-2" />
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label>Product type</Label>
+            <div className="flex flex-wrap gap-2">
+              {PRODUCT_TYPES.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setProductType(t)}
+                  className={cn(
+                    'rounded-lg border px-3 py-1.5 text-sm font-medium transition',
+                    productType === t ? 'border-brand bg-brand/10 text-brand' : 'border-border/60 bg-white text-muted-foreground hover:border-border hover:text-foreground'
+                  )}
+                >
+                  {PRODUCT_TYPE_LABELS[t]}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label>Category</Label>
             <Select value={categoryId} onValueChange={setCategoryId}>
@@ -395,62 +426,75 @@ export function ProductForm({
               </SelectContent>
             </Select>
           </div>
+
           {!isEditing && (
             <div className="space-y-2">
-              <Label htmlFor="p-tags">Tags / keywords (optional)</Label>
+              <Label htmlFor="p-tags">Tags / keywords</Label>
               <Input id="p-tags" value={tagsInput} onChange={(e) => setTagsInput(e.target.value)} placeholder="proposals, agencies, ai writing" />
-              <p className="text-xs text-muted-foreground">Comma-separated. Helps people find your product when browsing or searching.</p>
             </div>
           )}
-        </div>
-      </FormSection>
 
-      {!isEditing && (
-        <div className={cn(
-          'flex items-start gap-3 rounded-xl border p-4',
-          isFreeListing ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-brand/20 bg-brand/5'
-        )}>
-          <div className={cn(
-            'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
-            isFreeListing ? 'bg-emerald-500/10 text-emerald-500' : 'bg-brand/10 text-brand'
-          )}>
-            {isFreeListing ? <Package className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />}
-          </div>
-          <div className="flex-1">
-            {isFreeListing ? (
-              <>
-                <p className="text-sm font-medium text-foreground">{isProBuilder ? 'Unlimited listings with Pro Builder' : 'Your first listing is free'}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {isProBuilder ? 'Pro Builders can list unlimited software at no additional cost.' : 'Every new builder gets their first software listing for free. After that, each additional listing costs $10.'}
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="text-sm font-medium text-foreground">Listing fee: $10.00</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  A one-time fee of $10 per additional listing. This covers hosting, review moderation, and keeps spam out.
-                </p>
-              </>
-            )}
-          </div>
-          {!isFreeListing && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Lock className="h-3 w-3" /> Secure
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="p-demo">Demo URL</Label>
+              <Input id="p-demo" type="url" value={demoUrl} onChange={(e) => setDemoUrl(e.target.value)} placeholder="https://yourproduct.com/demo" />
             </div>
-          )}
-        </div>
-      )}
+            <div className="space-y-2">
+              <Label htmlFor="p-video">Demo video</Label>
+              <Input id="p-video" type="url" value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="https://youtube.com/watch?v=..." />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="p-repo">Repository</Label>
+              <Input id="p-repo" type="url" value={repoUrl} onChange={(e) => setRepoUrl(e.target.value)} placeholder="https://github.com/..." />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="p-docs">Documentation</Label>
+              <Input id="p-docs" type="url" value={docUrl} onChange={(e) => setDocUrl(e.target.value)} placeholder="https://docs.yourproduct.com" />
+            </div>
+          </div>
 
-      <Button type="submit" disabled={loading} className="w-full bg-brand text-brand-foreground hover:bg-brand/90">
-        {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Package className="mr-2 h-4 w-4" />}
-        {isEditing
-          ? (loading ? 'Saving...' : 'Save changes')
-          : loading
-            ? 'Redirecting to checkout...'
-            : isFreeListing
-              ? 'Publish — Free'
-              : 'Continue to payment — $10'}
-      </Button>
+          <div className="space-y-2">
+            <Label htmlFor="p-founder">Founder / company name</Label>
+            <Input id="p-founder" value={founderName} onChange={(e) => setFounderName(e.target.value)} placeholder="e.g. Jane at Postly" />
+          </div>
+
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <Label>Logo</Label>
+              {user ? (
+                <LogoUploader logoUrl={logoUrl} onLogoChange={setLogoUrl} />
+              ) : (
+                <p className="rounded-lg border border-dashed border-border/60 bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground">
+                  Sign in to upload a logo — you can add one right after.
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>Screenshots</Label>
+              {user ? (
+                <GalleryUploader images={images} onImagesChange={setImages} />
+              ) : (
+                <p className="rounded-lg border border-dashed border-border/60 bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground">
+                  Sign in to upload screenshots — you can add these right after.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <div>
+        <Button type="submit" disabled={loading} className="w-full bg-brand text-brand-foreground hover:bg-brand/90 sm:w-auto">
+          {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Package className="mr-2 h-4 w-4" />}
+          {isEditing
+            ? (loading ? 'Saving...' : 'Save changes')
+            : loading
+              ? 'Publishing...'
+              : isFreeListing
+                ? 'Submit your product — Free'
+                : 'Continue to payment — $10'}
+        </Button>
+      </div>
     </form>
 
     <NeedMatchDialog
@@ -481,31 +525,4 @@ async function linkTags(productId: string, tagNames: string[]) {
       await supabase.from('product_tags').insert({ product_id: productId, tag_id: tagId });
     }
   }
-}
-
-function FormSection({
-  icon: Icon,
-  title,
-  description,
-  children,
-}: {
-  icon: typeof FileText;
-  title: string;
-  description: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-2xl border border-border/60 bg-card/30 p-5 sm:p-6">
-      <div className="mb-4 flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
-          <Icon className="h-4 w-4" />
-        </div>
-        <div>
-          <h3 className="font-display text-base font-semibold text-foreground">{title}</h3>
-          <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
-        </div>
-      </div>
-      {children}
-    </div>
-  );
 }
