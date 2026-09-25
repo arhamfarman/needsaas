@@ -11,13 +11,21 @@ export const metadata: Metadata = {
     description: 'Have a problem you wish software, AI, or automation could solve? Post your Need for free and share it with others who have the same problem.',
     url: `${SITE_URL}/submit-need`,
     siteName: 'NeedSaaS',
-    images: ['/Logo.png'],
+    images: [
+      {
+        url: '/submit-need-link-banner.png',
+        width: 1734,
+        height: 907,
+        alt: 'Submit Your Need — NeedSaaS',
+      },
+    ],
     type: 'website',
   },
   twitter: {
-    card: 'summary',
+    card: 'summary_large_image',
     title: 'Submit Your Need — NeedSaaS',
     description: 'Have a problem you wish software, AI, or automation could solve? Tell us what you need.',
+    images: ['/submit-need-link-banner.png'],
   },
 };
 

@@ -11,13 +11,21 @@ export const metadata: Metadata = {
     description: 'Give your SaaS, AI agent, automation, or software product a home. Get a shareable public product page — your first listing is free.',
     url: `${SITE_URL}/submit-product`,
     siteName: 'NeedSaaS',
-    images: ['/Logo.png'],
+    images: [
+      {
+        url: '/submit-product-link-banner.png',
+        width: 1734,
+        height: 907,
+        alt: 'Submit Your Product — NeedSaaS',
+      },
+    ],
     type: 'website',
   },
   twitter: {
-    card: 'summary',
+    card: 'summary_large_image',
     title: 'Submit Your Product — NeedSaaS',
     description: 'Give your product a home. First listing free.',
+    images: ['/submit-product-link-banner.png'],
   },
 };
 
