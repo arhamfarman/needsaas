@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/auth-provider';
 import { trackPageView } from '@/lib/analytics';
+import { trackFunnelEvent } from '@/lib/funnel-analytics';
 import type {
   Need, Product, NeedProductLink, Contribution, BuilderInterest, NeedStatus, Category,
 } from '@/lib/types';
@@ -267,17 +268,24 @@ export function NeedDetailView() {
       </Link>
 
       {justPublished && (
-        <div className="mb-6 flex flex-col items-start justify-between gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 sm:flex-row sm:items-center">
-          <div>
-            <p className="text-sm font-medium text-foreground">🎉 Your Need is live!</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">Know someone with the same problem? Share it and invite them to support it.</p>
+        <div className="mb-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-5">
+          <p className="text-lg font-semibold text-foreground">🎉 Your Need is live!</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Know someone else with the same problem? Share it and invite them to support it.
+          </p>
+          <div className="mt-4">
+            <ShareButtons
+              url={typeof window !== 'undefined' ? window.location.href : `https://needsaas.com/needs/${need.id}`}
+              text={`I just posted a need on NeedSaaS:\n\n${need.title}\n\nIf you've run into the same problem, check it out and support it:`}
+              redditTitle={need.title}
+              layout="row"
+              onShare={(platform) => trackFunnelEvent('submit_need_share_clicked', { need_id: need.id, platform })}
+            />
           </div>
-          <ShareButtons
-            url={typeof window !== 'undefined' ? window.location.href : `https://needsaas.com/needs/${need.id}`}
-            text={`I just posted a need on NeedSaaS:\n\n${need.title}\n\nIf you've run into the same problem, check it out and support it:`}
-            label="Share your Need"
-            variant="default"
-          />
+          <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+            <Link href="/search" className="font-medium text-brand hover:underline">Explore existing software →</Link>
+            <Link href="/submit-need" className="text-muted-foreground hover:text-foreground">Post another Need</Link>
+          </div>
         </div>
       )}
 
@@ -442,6 +450,7 @@ export function NeedDetailView() {
         <ShareButtons
           url={typeof window !== 'undefined' ? window.location.href : `https://needsaas.com/needs/${need.id}`}
           text={`I just posted a need on NeedSaaS:\n\n${need.title}\n\nIf you've run into the same problem, check it out and support it:`}
+          redditTitle={need.title}
         />
         <Button
           variant="outline"
